@@ -220,6 +220,22 @@
     #map{height:320px}
     .ratio-value{font-size:16px}
   }
+  /* ---- smartphone: ratio controls dock above the map ---- */
+  @media (max-width:640px){
+    #map{height:40vh;height:40dvh;min-height:280px;max-height:360px}
+    .ratio-box.docked{
+      position:sticky;top:8px;z-index:60;
+      margin:12px 0 10px;padding:12px 14px;
+      background:var(--surface);border:1px solid var(--line);border-radius:14px;
+      box-shadow:var(--shadow);
+    }
+    .ratio-box.docked .ratio-ends,
+    .ratio-box.docked .ratio-cap{display:none}
+    .ratio-box.docked .ratio-state{margin-top:8px}
+    .ratio-box.docked .ratio-note{font-size:0;margin:6px 0 0;text-align:right}
+    .ratio-box.docked .ratio-note .ratio-reset{font-size:12px}
+    .ratio-box.docked + .map-card{margin-top:0}
+  }
 </style>
 </head>
 <body>
@@ -716,7 +732,30 @@ function updateMap(A, B, items){
   }, 60);
 }
 
+/* ---- smartphone layout: dock the ratio controls above the map ----
+   On narrow screens, once results exist, the ratio box moves into the
+   results area (directly above the map) and sticks to the top while the
+   candidate list scrolls. On wide screens it stays in the search card. */
+var ratioDockMQ = window.matchMedia ? window.matchMedia("(max-width: 640px)") : {matches: false};
+function placeRatioBox(){
+  var box = document.getElementById("ratioBox");
+  if (!box) return;
+  if (ratioDockMQ.matches && lastResult){
+    var results = document.getElementById("results");
+    if (box.parentNode !== results) results.insertBefore(box, document.getElementById("mapCard"));
+    box.classList.add("docked");
+  } else {
+    var goBtn = document.getElementById("goBtn");
+    if (box.nextSibling !== goBtn) goBtn.parentNode.insertBefore(box, goBtn);
+    box.classList.remove("docked");
+  }
+  if (leafletMap) setTimeout(function(){ if (leafletMap) leafletMap.invalidateSize(); }, 90);
+}
+if (ratioDockMQ.addEventListener) ratioDockMQ.addEventListener("change", placeRatioBox);
+else if (ratioDockMQ.addListener) ratioDockMQ.addListener(placeRatioBox);
+
 function renderResults(A, B){
+  placeRatioBox();
   var resA = lastResult.resA, resB = lastResult.resB;
   var nameA = ST[A].n, nameB = ST[B].n;
   document.getElementById("resultTitle").textContent = nameA + " × " + nameB + " の中間候補";
