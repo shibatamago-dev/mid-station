@@ -1,0 +1,898 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="color-scheme" content="light dark" />
+<link rel="icon" href="data:," />
+<title>勤務地の中間駅</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+<style>
+  :root{
+    --bg:#f4f6f3;
+    --surface:#ffffff;
+    --surface-2:#eef1ec;
+    --ink:#1d2620;
+    --muted:#5d6a60;
+    --line:#d9dfd8;
+    --accent:#177245;
+    --accent-ink:#ffffff;
+    --col-a:#177245;
+    --col-b:#c2512f;
+    --warn-bg:#fdf3e3;
+    --warn-ink:#7a5410;
+    --warn-line:#ecd9ae;
+    --shadow:0 1px 2px rgba(20,35,25,.06),0 6px 18px rgba(20,35,25,.06);
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#11150f;
+      --surface:#1a201a;
+      --surface-2:#232a23;
+      --ink:#e9ede8;
+      --muted:#a3ada2;
+      --line:#303a30;
+      --accent:#3fae74;
+      --accent-ink:#0d1510;
+      --col-a:#3fae74;
+      --col-b:#e07a52;
+      --warn-bg:#2b2413;
+      --warn-ink:#e3c98a;
+      --warn-line:#57481f;
+      --shadow:0 1px 2px rgba(0,0,0,.4),0 6px 18px rgba(0,0,0,.3);
+    }
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0;background:var(--bg);color:var(--ink);
+    font-family:"Noto Sans JP","Hiragino Kaku Gothic ProN","Yu Gothic UI",sans-serif;
+    line-height:1.65;font-size:16px;
+  }
+  .wrap{max-width:760px;margin:0 auto;padding:28px 18px 64px}
+  h1{font-size:30px;font-weight:900;line-height:1.3;margin:0 0 6px;letter-spacing:.01em}
+  .lead{color:var(--muted);margin:0 0 8px;font-size:15px}
+  .badge{
+    display:inline-block;font-size:12px;font-weight:700;color:var(--accent);
+    border:1.5px solid var(--accent);border-radius:999px;padding:2px 10px;margin-bottom:14px;
+  }
+  .card{
+    background:var(--surface);border:1px solid var(--line);border-radius:14px;
+    box-shadow:var(--shadow);padding:20px;margin:18px 0;
+  }
+  .field{position:relative;margin-bottom:6px}
+  .field label{display:block;font-weight:700;font-size:14px;margin-bottom:6px}
+  .field label .dot{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:7px;vertical-align:-1px}
+  .dot-a{background:var(--col-a)} .dot-b{background:var(--col-b)}
+  .field input{
+    width:100%;font:inherit;font-size:17px;padding:12px 14px;min-height:48px;
+    border:1.5px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);
+  }
+  .field input:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:var(--accent)}
+  .field input.invalid{border-color:var(--col-b);outline-color:var(--col-b)}
+  .suggest{
+    position:absolute;left:0;right:0;top:100%;z-index:30;margin-top:4px;
+    background:var(--surface);border:1px solid var(--line);border-radius:10px;
+    box-shadow:var(--shadow);display:none;max-height:320px;overflow-y:auto;
+  }
+  .suggest.open{display:block}
+  .suggest button{
+    display:block;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--line);
+    padding:11px 14px;font:inherit;cursor:pointer;color:var(--ink);min-height:44px;
+  }
+  .suggest button:last-child{border-bottom:0}
+  .suggest button:hover,.suggest button:active{background:var(--surface-2)}
+  .suggest .s-name{font-weight:700;font-size:16px}
+  .suggest .s-lines{display:block;font-size:12px;color:var(--muted);margin-top:1px}
+  .swap-row{display:flex;align-items:center;gap:10px;margin:2px 0 8px}
+  .swap-btn{
+    display:inline-flex;align-items:center;gap:6px;font:inherit;font-size:13px;font-weight:700;
+    background:var(--surface-2);color:var(--ink);border:1px solid var(--line);
+    border-radius:999px;padding:8px 14px;min-height:36px;cursor:pointer;
+  }
+  .seg-label{font-size:13px;font-weight:700;color:var(--muted);margin:16px 0 8px}
+  .seg{display:flex;gap:6px;flex-wrap:wrap}
+  .seg button{
+    flex:1 1 auto;font:inherit;font-size:14px;font-weight:500;padding:10px 8px;min-height:44px;
+    border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px;cursor:pointer;
+  }
+  .seg button[aria-pressed="true"]{border-color:var(--accent);color:var(--accent);font-weight:700;background:var(--surface-2)}
+  .go-btn{
+    width:100%;margin-top:18px;font:inherit;font-size:17px;font-weight:900;letter-spacing:.02em;
+    background:var(--accent);color:var(--accent-ink);border:0;border-radius:12px;
+    padding:15px;min-height:54px;cursor:pointer;
+  }
+  .go-btn:active{transform:translateY(1px)}
+  .examples{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:14px;font-size:13px;color:var(--muted)}
+  .examples button{
+    font:inherit;font-size:13px;font-weight:500;background:none;color:var(--accent);
+    border:1px solid var(--line);border-radius:999px;padding:7px 12px;min-height:36px;cursor:pointer;
+  }
+  .error{
+    display:none;background:var(--warn-bg);color:var(--warn-ink);border:1px solid var(--warn-line);
+    border-radius:10px;padding:12px 14px;font-size:14px;margin-top:14px;
+  }
+  .error.show{display:block}
+  .result-head{margin:30px 0 4px}
+  .result-head h2{font-size:21px;font-weight:900;margin:0}
+  .result-head p{color:var(--muted);font-size:14px;margin:4px 0 0}
+  .filter-notice{font-size:13px;font-weight:700;color:var(--warn-ink);background:var(--warn-bg);border:1px solid var(--warn-line);border-radius:10px;padding:10px 12px;margin:10px 0 0;line-height:1.55}
+  .filter-notice[hidden]{display:none}
+  .fill-tag{display:inline-block;font-size:11px;font-weight:900;color:var(--warn-ink);background:var(--warn-bg);border:1px solid var(--warn-line);border-radius:999px;padding:1px 8px;vertical-align:2px}
+  .cand{
+    background:var(--surface);border:1px solid var(--line);border-radius:14px;
+    box-shadow:var(--shadow);padding:18px;margin:14px 0;
+  }
+  .cand-top{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+  .rank{
+    font-size:12px;font-weight:900;color:var(--accent-ink);background:var(--accent);
+    border-radius:6px;padding:2px 8px;flex:none;
+  }
+  .cand-name{font-size:22px;font-weight:900;line-height:1.25}
+  .cand-name small{font-size:13px;font-weight:500;color:var(--muted)}
+  .map-link{margin-left:auto;font-size:13px;font-weight:700;color:var(--accent);text-decoration:none;padding:8px 4px;min-height:36px;display:inline-flex;align-items:center}
+  .lines{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 2px}
+  .lines span{font-size:12px;background:var(--surface-2);border:1px solid var(--line);border-radius:999px;padding:2px 9px;color:var(--muted)}
+  .times{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:14px}
+  .times .t{background:var(--surface-2);border-radius:10px;padding:10px 12px}
+  .times .t .who{font-size:12px;font-weight:700;color:var(--muted)}
+  .times .t .min{font-size:24px;font-weight:900;line-height:1.2}
+  .times .t .min small{font-size:13px;font-weight:700}
+  .times .t .sub{font-size:12px;color:var(--muted)}
+  .bar{display:flex;height:10px;border-radius:999px;overflow:hidden;margin-top:14px;background:var(--surface-2)}
+  .bar .ba{background:var(--col-a)}
+  .bar .bb{background:var(--col-b)}
+  .bar-cap{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-top:5px}
+  details.route{margin-top:12px;border-top:1px dashed var(--line);padding-top:10px}
+  details.route summary{cursor:pointer;font-weight:700;font-size:14px;color:var(--accent);padding:8px 0;min-height:36px}
+  .route-leg{margin:8px 0 14px}
+  .route-leg h4{margin:0 0 6px;font-size:13px;color:var(--muted);font-weight:700}
+  .seg-row{display:flex;gap:10px;align-items:flex-start;padding:7px 0;border-bottom:1px solid var(--line)}
+  .seg-row:last-child{border-bottom:0}
+  .seg-line{
+    flex:none;font-size:12px;font-weight:700;border:1.5px solid var(--accent);color:var(--accent);
+    border-radius:6px;padding:2px 8px;margin-top:2px;max-width:45%;
+  }
+  .seg-desc{font-size:14px}
+  .seg-desc .mins{color:var(--muted);font-size:13px}
+  .transfer-note{font-size:13px;color:var(--muted);padding:4px 0 4px 2px}
+  .route-total{font-size:13px;font-weight:700;margin-top:4px}
+  .howto h2,.notes h2{font-size:17px;font-weight:900;margin:0 0 8px}
+  .howto p,.notes p,.notes li{font-size:14px;color:var(--muted)}
+  .notes ul{margin:6px 0;padding-left:20px}
+  .notes li{margin:4px 0}
+  code{background:var(--surface-2);border-radius:5px;padding:1px 6px;font-size:13px}
+  footer{margin-top:34px;font-size:12px;color:var(--muted);border-top:1px solid var(--line);padding-top:14px}
+  /* ratio slider */
+  .ratio-box{margin-top:18px;padding-top:16px;border-top:1px dashed var(--line)}
+  .ratio-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  .ratio-head label{font-size:13px;font-weight:700;color:var(--muted)}
+  .ratio-value{font-size:18px;font-weight:900;letter-spacing:.01em}
+  .ratio-value .rv-a{color:var(--col-a)} .ratio-value .rv-b{color:var(--col-b)}
+  .ratio-slider-row{display:flex;align-items:center;gap:8px;margin-top:10px}
+  .ratio-ends{display:flex;justify-content:space-between;font-size:12px;font-weight:700;color:var(--muted);margin-top:2px;padding:0 52px}
+  input[type="range"].ratio-range{flex:1;min-width:0;accent-color:var(--accent);height:44px;cursor:pointer;touch-action:none}
+  .ratio-step{
+    flex:none;width:44px;height:44px;border-radius:50%;border:1.5px solid var(--line);
+    background:var(--surface);color:var(--accent);font-size:20px;font-weight:900;line-height:1;
+    cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0;
+  }
+  .ratio-step:active{background:var(--surface-2)}
+  .ratio-step:disabled{opacity:.35;cursor:default}
+  .ratio-bar{display:flex;height:12px;border-radius:999px;overflow:hidden;background:var(--surface-2);margin-top:2px}
+  .ratio-bar .ra{background:var(--col-a);transition:width .15s ease}
+  .ratio-bar .rb{background:var(--col-b);transition:width .15s ease}
+  .ratio-cap{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:var(--muted);margin-top:5px}
+  .ratio-state{font-size:12px;font-weight:700;color:var(--accent);background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:7px 10px;margin:10px 0 0;line-height:1.55}
+  .ratio-note{font-size:12px;color:var(--muted);margin:8px 0 0;line-height:1.55}
+  .ratio-note strong{color:var(--ink)}
+  .ratio-reset{font:inherit;font-size:12px;font-weight:700;background:none;border:1px solid var(--line);border-radius:999px;padding:5px 10px;cursor:pointer;color:var(--accent)}
+  /* actual ratio chip */
+  .ratio-actual{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px;font-size:13px}
+  .ratio-actual .chip{display:inline-flex;align-items:center;gap:6px;background:var(--surface-2);border:1px solid var(--line);border-radius:999px;padding:4px 10px;font-weight:700;font-size:12px}
+  .ratio-actual .chip b{font-size:13px}
+  .ratio-actual .delta{color:var(--muted);font-size:12px}
+  /* map */
+  .map-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:14px;margin:14px 0}
+  .map-card h3{margin:2px 4px 8px;font-size:15px;font-weight:900}
+  .map-card p{margin:0 4px 10px;font-size:12px;color:var(--muted)}
+  #map{height:400px;border-radius:10px;overflow:hidden;border:1px solid var(--line);background:var(--surface-2);z-index:1}
+  .map-legend{display:flex;flex-wrap:wrap;gap:8px 14px;margin-top:10px;padding:0 4px;font-size:12px;color:var(--muted)}
+  .map-legend span{display:inline-flex;align-items:center;gap:6px}
+  .lg-dot{width:14px;height:14px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.35);display:inline-block;flex:none}
+  .lg-mid{width:14px;height:14px;background:#6b4fd8;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.35);display:inline-block;flex:none;transform:rotate(45deg);border-radius:3px}
+  .leaflet-popup-content{font-family:"Noto Sans JP",sans-serif;font-size:13px;line-height:1.6;min-width:190px}
+  .leaflet-popup-content .pop-title{font-weight:900;font-size:15px;margin-bottom:2px}
+  .leaflet-popup-content .pop-row{display:flex;justify-content:space-between;gap:12px}
+  .pin-icon{background:transparent;border:0}
+  .pin{width:30px;height:30px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900;font-size:13px}
+  .pin span{transform:rotate(45deg);line-height:1}
+  .pin-a{background:#177245}.pin-b{background:#c2512f}.pin-c{background:#2456a6}.pin-c.is-active{background:#111827;outline:3px solid #f5c542}
+  .pin-mid{width:22px;height:22px;background:#6b4fd8;border-radius:4px;transform:rotate(45deg);border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.35)}
+  .cand{cursor:pointer;transition:border-color .15s, box-shadow .15s}
+  .cand.is-active{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent), var(--shadow)}
+  .cand:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  @media (max-width:520px){
+    h1{font-size:25px}
+    .times{grid-template-columns:1fr 1fr}
+    .times .t.diff{grid-column:1 / -1}
+    .cand-name{font-size:20px}
+    #map{height:320px}
+    .ratio-value{font-size:16px}
+  }
+  /* ---- smartphone: ratio controls dock above the map ---- */
+  @media (max-width:640px){
+    #map{height:40vh;height:40dvh;min-height:280px;max-height:360px}
+    .ratio-box.docked{
+      position:sticky;top:8px;z-index:60;
+      margin:12px 0 10px;padding:12px 14px;
+      background:var(--surface);border:1px solid var(--line);border-radius:14px;
+      box-shadow:var(--shadow);
+    }
+    .ratio-box.docked .ratio-ends,
+    .ratio-box.docked .ratio-cap{display:none}
+    .ratio-box.docked .ratio-state{margin-top:8px}
+    .ratio-box.docked .ratio-note{font-size:0;margin:6px 0 0;text-align:right}
+    .ratio-box.docked .ratio-note .ratio-reset{font-size:12px}
+    .ratio-box.docked + .map-card{margin-top:0}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <span class="badge">駅グラフ版</span>
+  <h1>勤務地の中間駅</h1>
+  <p class="lead">2人の勤務地の最寄り駅を入れると、両方から通いやすい「中間駅」の候補を、路線のつながり（駅グラフ）から探します。引っ越し先探しの当たり付けに。</p>
+
+  <div class="card">
+    <div class="field" id="fieldA">
+      <label for="inputA"><span class="dot dot-a"></span>勤務地Aの最寄り駅</label>
+      <input id="inputA" type="text" placeholder="例：新宿" autocomplete="off" />
+      <div class="suggest" id="suggestA" role="listbox"></div>
+    </div>
+
+    <div class="swap-row">
+      <button type="button" class="swap-btn" id="swapBtn">⇅ AとBを入れ替える</button>
+    </div>
+
+    <div class="field" id="fieldB">
+      <label for="inputB"><span class="dot dot-b"></span>勤務地Bの最寄り駅</label>
+      <input id="inputB" type="text" placeholder="例：横浜" autocomplete="off" />
+      <div class="suggest" id="suggestB" role="listbox"></div>
+    </div>
+
+    <p class="seg-label">候補の並び順（下の比率で絞り込んだ中での順番）</p>
+    <div class="seg" id="sortSeg" role="group" aria-label="候補の並び順">
+      <button type="button" data-sort="diff" aria-pressed="true">時間差が小さい順</button>
+      <button type="button" data-sort="total" aria-pressed="false">合計が短い順</button>
+    </div>
+
+    <div class="ratio-box" id="ratioBox">
+      <div class="ratio-head">
+        <label for="ratioRange">希望の時間比率（<span id="ratioNameA">A</span> ： <span id="ratioNameB">B</span>）</label>
+        <span class="ratio-value" aria-live="polite"><span class="rv-a" id="ratioValA">50</span> : <span class="rv-b" id="ratioValB">50</span></span>
+      </div>
+      <div class="ratio-slider-row">
+        <button type="button" class="ratio-step" id="ratioMinus" aria-label="Aの割合を5下げる">−</button>
+        <input type="range" class="ratio-range" id="ratioRange" min="5" max="95" step="5" value="50" aria-label="希望の時間比率。左が勤務地Aの割合" />
+        <button type="button" class="ratio-step" id="ratioPlus" aria-label="Aの割合を5上げる">＋</button>
+      </div>
+      <div class="ratio-ends" aria-hidden="true"><span>5 : 95</span><span>95 : 5</span></div>
+      <div class="ratio-bar" aria-hidden="true"><div class="ra" id="ratioBarA" style="width:50%"></div><div class="rb" id="ratioBarB" style="width:50%"></div></div>
+      <div class="ratio-cap"><span id="ratioCapA">A側 50%</span><span>真ん中は 50 : 50</span><span id="ratioCapB">B側 50%</span></div>
+      <p class="ratio-state" id="ratioSortState" aria-live="polite">絞り込み：希望の比率 50 : 50 の ±10ポイント以内を優先します。並び順は上のボタンで選んだ順です。</p>
+      <p class="ratio-note">比率は<strong>常時の絞り込み条件</strong>です。まず実際の比率が希望の <strong>±10ポイント以内</strong>の駅だけを残し、その中を上のボタン（時間差が小さい順／合計が短い順）で並べて上位8駅を表示します。スライダーを動かしても並び順のボタンは解除されません。範囲内が8駅に満たないときは、範囲外から比率が近い順に補って8駅にし、その旨と補った駅（「範囲外・補充」表示）を画面に出します。左に寄せるほどA側が短い比率、右に寄せるほどB側が短い比率が希望になります。両端の − ／ ＋ ボタンでも5ずつ変えられます。 <button type="button" class="ratio-reset" id="ratioReset">50:50に戻す</button></p>
+    </div>
+
+    <button type="button" class="go-btn" id="goBtn">中間駅を探す</button>
+    <div class="error" id="errorBox"></div>
+
+    <div class="examples">
+      <span>サンプル：</span>
+      <button type="button" data-ex="新宿|横浜">新宿 × 横浜</button>
+      <button type="button" data-ex="渋谷|東京">渋谷 × 東京</button>
+      <button type="button" data-ex="池袋|品川">池袋 × 品川</button>
+      <button type="button" data-ex="秋葉原|吉祥寺">秋葉原 × 吉祥寺</button>
+    </div>
+  </div>
+
+  <div id="results" hidden>
+    <div class="result-head">
+      <h2 id="resultTitle"></h2>
+      <p id="resultSub"></p>
+      <p class="filter-notice" id="filterNotice" hidden></p>
+    </div>
+    <div class="map-card" id="mapCard">
+      <h3>地図で見る</h3>
+      <p>ピンをタップすると候補の詳細が出ます。一覧のカードをタップすると地図でも場所が分かります。◆は2駅の地理的な中点です（時間の中間とは限りません）。</p>
+      <div id="map" role="application" aria-label="勤務地と候補駅の地図"></div>
+      <div class="map-legend">
+        <span><i class="lg-dot" style="background:#177245"></i>勤務地A</span>
+        <span><i class="lg-dot" style="background:#c2512f"></i>勤務地B</span>
+        <span><i class="lg-dot" style="background:#2456a6"></i>候補（番号＝順位）</span>
+        <span><i class="lg-mid"></i>地理的な中点</span>
+      </div>
+      <p style="margin-top:8px">地図：© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors ／ Leaflet</p>
+    </div>
+    <div id="candList"></div>
+  </div>
+
+  <div class="card howto">
+    <h2>このツールの仕組み</h2>
+    <p>首都圏の54路線・872駅について「隣の駅」と「乗り換え」をつないだグラフを作り、2つの勤務地駅から全駅への最短ルートを計算しています。各候補駅について両側からの所要時間を求め、並び順の条件でランキングします。</p>
+    <p>所要時間は<strong>推定</strong>です。駅間は <code>1.5分 ＋ 駅間距離(km) × 0.7分</code>、乗り換え1回 <code>5分</code> として計算しています。時刻表・特急料金・混雑は考慮していないので、実際の所要時間とはズレます。「だいたい釣り合う駅はどこか」の目安として使ってください。</p>
+    <p>候補の選び方は2段階です。まず希望比率で絞り込みます：実際の比率（A側の割合＝Aからの時間 ÷ 合計時間 × 100）が希望の ±10ポイント以内にある駅だけを候補にします。次に、その候補の中をボタンで選んだ順（「時間差が小さい順」＝｜Aの時間 − Bの時間｜が小さい順、同点なら合計が短い順／「合計が短い順」＝A＋Bが小さい順）で並べ、上位8駅を表示します。比率は並び順と同時に効く条件で、スライダーを動かしてもボタンで選んだ並び順は変わりません。範囲内が8駅に満たないときは、範囲外の駅を比率が近い順（希望との差が小さい順）に足して8駅まで補い、補ったことが分かるよう結果の上に注記し、補った駅には「範囲外・補充」と付けます。地図は Leaflet ＋ OpenStreetMap で、勤務地2駅・上位8候補・地理的な中点（緯度経度の平均）を表示します。</p>
+  </div>
+
+  <div class="card notes">
+    <h2>注意・データ出典</h2>
+    <ul>
+      <li>対象は首都圏の主要54路線のみです。対象外の路線・駅（私鉄の一部、バスなど）は含まれません。</li>
+      <li>同じ駅でも事業者が違う場合は別の駅として扱われることがあります（例：浅草）。</li>
+      <li>快速・急行などの優等列車は各駅停車と同じ扱いで計算しています。</li>
+      <li>駅・路線データ：TERAREN（原典：国土数値情報 鉄道データ、国土交通省）をもとに作成。所要時間は時刻表を使わない推定値です。</li>
+      <li>地図：© OpenStreetMap contributors（Leafletで表示）。地理的な中点は緯度経度の平均で、所要時間の中間とは限りません。</li>
+    </ul>
+  </div>
+
+  <footer>勤務地の中間駅 ― 所要時間はすべて推定値です</footer>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+"use strict";
+var DATA = {"stations":{"1130201":{"n":"大崎","lat":35.619772,"lon":139.728439},"1130202":{"n":"五反田","lat":35.625974,"lon":139.723822},"1130203":{"n":"目黒","lat":35.633923,"lon":139.715775},"1130204":{"n":"恵比寿","lat":35.646685,"lon":139.71007},"1130205":{"n":"渋谷","lat":35.658871,"lon":139.701238},"1130206":{"n":"原宿","lat":35.670646,"lon":139.702592},"1130207":{"n":"代々木","lat":35.683061,"lon":139.702042},"1130208":{"n":"新宿","lat":35.689729,"lon":139.700464},"1130209":{"n":"新大久保","lat":35.700875,"lon":139.700261},"1130210":{"n":"高田馬場","lat":35.712677,"lon":139.703715},"1130211":{"n":"目白","lat":35.720476,"lon":139.706228},"1130212":{"n":"池袋","lat":35.730256,"lon":139.711086},"1130213":{"n":"大塚","lat":35.731412,"lon":139.728584},"1130214":{"n":"巣鴨","lat":35.733445,"lon":139.739303},"1130215":{"n":"駒込","lat":35.736825,"lon":139.748053},"1130216":{"n":"田端","lat":35.737781,"lon":139.761229},"1130217":{"n":"西日暮里","lat":35.731954,"lon":139.766857},"1130218":{"n":"日暮里","lat":35.727908,"lon":139.771287},"1130219":{"n":"鶯谷","lat":35.721484,"lon":139.778015},"1130220":{"n":"上野","lat":35.71379,"lon":139.777043},"1130221":{"n":"御徒町","lat":35.707282,"lon":139.774727},"1130222":{"n":"秋葉原","lat":35.698619,"lon":139.773288},"1130223":{"n":"神田","lat":35.691173,"lon":139.770641},"1130101":{"n":"東京","lat":35.681391,"lon":139.766103},"1130225":{"n":"有楽町","lat":35.675441,"lon":139.763806},"1130102":{"n":"新橋","lat":35.666195,"lon":139.758587},"1130227":{"n":"浜松町","lat":35.655391,"lon":139.757135},"1130228":{"n":"田町","lat":35.645736,"lon":139.747575},"1130230":{"n":"高輪ゲートウェイ","lat":35.6355,"lon":139.7407},"1130103":{"n":"品川","lat":35.62876,"lon":139.738999},"1131203":{"n":"御茶ノ水","lat":35.699605,"lon":139.764955},"1131102":{"n":"四ツ谷","lat":35.686041,"lon":139.730644},"1131214":{"n":"中野","lat":35.705765,"lon":139.665835},"1131215":{"n":"高円寺","lat":35.705326,"lon":139.649664},"1131216":{"n":"阿佐ケ谷","lat":35.704818,"lon":139.635868},"1131217":{"n":"荻窪","lat":35.704523,"lon":139.620109},"1131218":{"n":"西荻窪","lat":35.703842,"lon":139.599361},"1131104":{"n":"吉祥寺","lat":35.703119,"lon":139.579765},"1131105":{"n":"三鷹","lat":35.702683,"lon":139.560325},"1131221":{"n":"武蔵境","lat":35.702083,"lon":139.543402},"1131222":{"n":"東小金井","lat":35.701643,"lon":139.524837},"1131223":{"n":"武蔵小金井","lat":35.701337,"lon":139.506483},"1131106":{"n":"国分寺","lat":35.700123,"lon":139.480841},"1130503":{"n":"西国分寺","lat":35.699744,"lon":139.465994},"1131226":{"n":"国立","lat":35.69923,"lon":139.44634},"1130325":{"n":"立川","lat":35.698202,"lon":139.413704},"1131108":{"n":"日野","lat":35.679244,"lon":139.39393},"1131109":{"n":"豊田","lat":35.659502,"lon":139.381495},"1130620":{"n":"八王子","lat":35.655555,"lon":139.338998},"1131111":{"n":"西八王子","lat":35.656621,"lon":139.31264},"1131112":{"n":"高尾","lat":35.642026,"lon":139.282288},"1131906":{"n":"大宮","lat":35.906439,"lon":139.62405},"1131905":{"n":"さいたま新都心","lat":35.893867,"lon":139.633587},"1133203":{"n":"与野","lat":35.884393,"lon":139.639085},"1133204":{"n":"北浦和","lat":35.872053,"lon":139.645951},"1131904":{"n":"浦和","lat":35.858496,"lon":139.657109},"1130511":{"n":"南浦和","lat":35.847648,"lon":139.669125},"1133207":{"n":"蕨","lat":35.827959,"lon":139.690357},"1133208":{"n":"西川口","lat":35.815514,"lon":139.704312},"1133209":{"n":"川口","lat":35.801869,"lon":139.717472},"1131903":{"n":"赤羽","lat":35.778026,"lon":139.720928},"1133211":{"n":"東十条","lat":35.763803,"lon":139.726858},"1133212":{"n":"王子","lat":35.752538,"lon":139.73809},"1133213":{"n":"上中里","lat":35.74728,"lon":139.745769},"1133228":{"n":"大井町","lat":35.606257,"lon":139.73485},"1133229":{"n":"大森","lat":35.588903,"lon":139.728079},"1133230":{"n":"蒲田","lat":35.562517,"lon":139.716032},"1130104":{"n":"川崎","lat":35.531311,"lon":139.697485},"1130401":{"n":"鶴見","lat":35.508387,"lon":139.67614},"1133233":{"n":"新子安","lat":35.487064,"lon":139.654776},"1130601":{"n":"東神奈川","lat":35.47804,"lon":139.633466},"1130105":{"n":"横浜","lat":35.466195,"lon":139.622704},"1131308":{"n":"東中野","lat":35.706529,"lon":139.684436},"1131309":{"n":"大久保","lat":35.700784,"lon":139.69732},"1131312":{"n":"千駄ケ谷","lat":35.681231,"lon":139.711644},"1131313":{"n":"信濃町","lat":35.680031,"lon":139.720729},"1131315":{"n":"市ケ谷","lat":35.691,"lon":139.735583},"1131316":{"n":"飯田橋","lat":35.701835,"lon":139.745143},"1131317":{"n":"水道橋","lat":35.702039,"lon":139.754312},"1131320":{"n":"浅草橋","lat":35.697403,"lon":139.784427},"1131321":{"n":"両国","lat":35.69579,"lon":139.793334},"1131322":{"n":"錦糸町","lat":35.696802,"lon":139.814136},"1131323":{"n":"亀戸","lat":35.697345,"lon":139.826262},"1131324":{"n":"平井","lat":35.70643,"lon":139.842181},"1131325":{"n":"新小岩","lat":35.716903,"lon":139.857777},"1131326":{"n":"小岩","lat":35.733207,"lon":139.881755},"1131327":{"n":"市川","lat":35.728903,"lon":139.908142},"1131328":{"n":"本八幡","lat":35.720898,"lon":139.92741},"1131329":{"n":"下総中山","lat":35.714276,"lon":139.943092},"1130524":{"n":"西船橋","lat":35.707283,"lon":139.959536},"1131331":{"n":"船橋","lat":35.701865,"lon":139.984707},"1131332":{"n":"東船橋","lat":35.699811,"lon":140.00393},"1131333":{"n":"津田沼","lat":35.691367,"lon":140.020179},"1131334":{"n":"幕張本郷","lat":35.672664,"lon":140.042241},"1131335":{"n":"幕張","lat":35.6594,"lon":140.057899},"1131336":{"n":"新検見川","lat":35.65169,"lon":140.073025},"1131337":{"n":"稲毛","lat":35.637264,"lon":140.09256},"1131338":{"n":"西千葉","lat":35.622639,"lon":140.103337},"1131339":{"n":"千葉","lat":35.613425,"lon":140.112837},"1132106":{"n":"板橋","lat":35.745435,"lon":139.719507},"1132107":{"n":"十条","lat":35.760321,"lon":139.722233},"1132109":{"n":"北赤羽","lat":35.787007,"lon":139.70569},"1132110":{"n":"浮間舟渡","lat":35.791209,"lon":139.691341},"1132111":{"n":"戸田公園","lat":35.807906,"lon":139.678203},"1132112":{"n":"戸田","lat":35.817665,"lon":139.669548},"1132113":{"n":"北戸田","lat":35.826883,"lon":139.661201},"1130510":{"n":"武蔵浦和","lat":35.845422,"lon":139.646809},"1132115":{"n":"中浦和","lat":35.853769,"lon":139.6375},"1132116":{"n":"南与野","lat":35.867456,"lon":139.631117},"1132117":{"n":"与野本町","lat":35.880968,"lon":139.626075},"1132118":{"n":"北与野","lat":35.890678,"lon":139.628521},"1132120":{"n":"日進","lat":35.931555,"lon":139.606111},"1132121":{"n":"指扇","lat":35.917023,"lon":139.564951},"1132122":{"n":"南古谷","lat":35.903344,"lon":139.519082},"1132123":{"n":"川越","lat":35.906742,"lon":139.483078},"1130804":{"n":"西大井","lat":35.601616,"lon":139.721729},"1130307":{"n":"武蔵小杉","lat":35.57669,"lon":139.65963},"1130805":{"n":"新川崎","lat":35.551784,"lon":139.671481},"1130807":{"n":"保土ケ谷","lat":35.446746,"lon":139.599671},"1130808":{"n":"東戸塚","lat":35.430353,"lon":139.556794},"1130106":{"n":"戸塚","lat":35.400432,"lon":139.534282},"1130107":{"n":"大船","lat":35.353466,"lon":139.531127},"1130602":{"n":"大口","lat":35.492375,"lon":139.646288},"1130603":{"n":"菊名","lat":35.509749,"lon":139.630147},"1130604":{"n":"新横浜","lat":35.506824,"lon":139.617348},"1130605":{"n":"小机","lat":35.508533,"lon":139.599787},"1130606":{"n":"鴨居","lat":35.510955,"lon":139.56707},"1130607":{"n":"中山","lat":35.514745,"lon":139.539692},"1130608":{"n":"十日市場","lat":35.526254,"lon":139.51669},"1130609":{"n":"長津田","lat":35.531698,"lon":139.49468},"1130610":{"n":"成瀬","lat":35.535412,"lon":139.472875},"1130611":{"n":"町田","lat":35.542004,"lon":139.445579},"1130612":{"n":"古淵","lat":35.556055,"lon":139.419151},"1130613":{"n":"淵野辺","lat":35.568784,"lon":139.395075},"1130614":{"n":"矢部","lat":35.573275,"lon":139.386373},"1130615":{"n":"相模原","lat":35.58113,"lon":139.371007},"1130616":{"n":"橋本","lat":35.594975,"lon":139.344586},"1130617":{"n":"相原","lat":35.60694,"lon":139.33169},"1130618":{"n":"八王子みなみ野","lat":35.630664,"lon":139.330678},"1130619":{"n":"片倉","lat":35.639704,"lon":139.34119},"1130328":{"n":"浜川崎","lat":35.510428,"lon":139.713483},"1130330":{"n":"小田栄","lat":35.5145,"lon":139.704944},"1130327":{"n":"川崎新町","lat":35.518234,"lon":139.699348},"1130326":{"n":"八丁畷","lat":35.523071,"lon":139.691446},"1130302":{"n":"尻手","lat":35.530939,"lon":139.684233},"1130303":{"n":"矢向","lat":35.539408,"lon":139.68055},"1130304":{"n":"鹿島田","lat":35.551459,"lon":139.674964},"1130305":{"n":"平間","lat":35.560565,"lon":139.671039},"1130306":{"n":"向河原","lat":35.572891,"lon":139.66725},"1130308":{"n":"武蔵中原","lat":35.581498,"lon":139.640613},"1130309":{"n":"武蔵新城","lat":35.587369,"lon":139.629419},"1130310":{"n":"武蔵溝ノ口","lat":35.598923,"lon":139.61139},"1130311":{"n":"津田山","lat":35.604259,"lon":139.600002},"1130312":{"n":"久地","lat":35.610363,"lon":139.592714},"1130313":{"n":"宿河原","lat":35.615429,"lon":139.579565},"1130314":{"n":"登戸","lat":35.620889,"lon":139.570028},"1130315":{"n":"中野島","lat":35.630135,"lon":139.5501},"1130316":{"n":"稲田堤","lat":35.633701,"lon":139.535173},"1130317":{"n":"矢野口","lat":35.641305,"lon":139.520849},"1130318":{"n":"稲城長沼","lat":35.644184,"lon":139.502811},"1130319":{"n":"南多摩","lat":35.649249,"lon":139.489781},"1130320":{"n":"府中本町","lat":35.665766,"lon":139.477142},"1130321":{"n":"分倍河原","lat":35.668493,"lon":139.468798},"1130329":{"n":"西府","lat":35.670912,"lon":139.457477},"1130322":{"n":"谷保","lat":35.681377,"lon":139.446724},"1130323":{"n":"矢川","lat":35.685079,"lon":139.431611},"1130324":{"n":"西国立","lat":35.69375,"lon":139.423887},"1130502":{"n":"北府中","lat":35.68088,"lon":139.471792},"1130504":{"n":"新小平","lat":35.73128,"lon":139.470745},"1130505":{"n":"新秋津","lat":35.778331,"lon":139.493592},"1130506":{"n":"東所沢","lat":35.79461,"lon":139.513878},"1130507":{"n":"新座","lat":35.80381,"lon":139.556328},"1130508":{"n":"北朝霞","lat":35.815475,"lon":139.587322},"1130509":{"n":"西浦和","lat":35.844139,"lon":139.627707},"1130512":{"n":"東浦和","lat":35.864079,"lon":139.704627},"1130513":{"n":"東川口","lat":35.875246,"lon":139.744087},"1130514":{"n":"南越谷","lat":35.876106,"lon":139.790499},"1130525":{"n":"越谷レイクタウン","lat":35.876199,"lon":139.822012},"1130515":{"n":"吉川","lat":35.87662,"lon":139.843162},"1130526":{"n":"吉川美南","lat":35.868056,"lon":139.858167},"1130516":{"n":"新三郷","lat":35.858667,"lon":139.869341},"1130517":{"n":"三郷","lat":35.845004,"lon":139.886341},"1130518":{"n":"南流山","lat":35.838035,"lon":139.903865},"1130519":{"n":"新松戸","lat":35.825467,"lon":139.921076},"1130520":{"n":"新八柱","lat":35.792013,"lon":139.938393},"1130521":{"n":"東松戸","lat":35.770611,"lon":139.943848},"1130522":{"n":"市川大野","lat":35.755432,"lon":139.951227},"1130523":{"n":"船橋法典","lat":35.730435,"lon":139.966771},"1132602":{"n":"八丁堀","lat":35.674617,"lon":139.777705},"1132603":{"n":"越中島","lat":35.667946,"lon":139.792713},"1132604":{"n":"潮見","lat":35.658702,"lon":139.817341},"1132605":{"n":"新木場","lat":35.646172,"lon":139.827402},"1132606":{"n":"葛西臨海公園","lat":35.644392,"lon":139.861529},"1132607":{"n":"舞浜","lat":35.636115,"lon":139.883714},"1132608":{"n":"新浦安","lat":35.649526,"lon":139.912553},"1132609":{"n":"市川塩浜","lat":35.666554,"lon":139.923684},"1132611":{"n":"二俣新町","lat":35.691273,"lon":139.959525},"1132612":{"n":"南船橋","lat":35.681804,"lon":139.995773},"1132613":{"n":"新習志野","lat":35.667342,"lon":140.012825},"1132619":{"n":"幕張豊砂","lat":35.6579,"lon":140.0272},"1132614":{"n":"海浜幕張","lat":35.648373,"lon":140.041917},"1132615":{"n":"検見川浜","lat":35.637291,"lon":140.058888},"1132616":{"n":"稲毛海岸","lat":35.629501,"lon":140.074034},"1132617":{"n":"千葉みなと","lat":35.606172,"lon":140.10341},"1132403":{"n":"蘇我","lat":35.582065,"lon":140.130767},"1130811":{"n":"北鎌倉","lat":35.337198,"lon":139.545134},"1130812":{"n":"鎌倉","lat":35.318793,"lon":139.550428},"1130813":{"n":"逗子","lat":35.297392,"lon":139.578292},"1130814":{"n":"東逗子","lat":35.298781,"lon":139.601768},"1130815":{"n":"田浦","lat":35.29271,"lon":139.637726},"1130816":{"n":"横須賀","lat":35.284022,"lon":139.655855},"1130817":{"n":"衣笠","lat":35.257091,"lon":139.661193},"1130818":{"n":"久里浜","lat":35.233107,"lon":139.700862},"1132003":{"n":"三河島","lat":35.733383,"lon":139.777131},"1132004":{"n":"南千住","lat":35.734033,"lon":139.7994},"1132005":{"n":"北千住","lat":35.749677,"lon":139.804872},"1132006":{"n":"綾瀬","lat":35.762222,"lon":139.825019},"1132007":{"n":"亀有","lat":35.766527,"lon":139.847573},"1132008":{"n":"金町","lat":35.769582,"lon":139.870482},"1132009":{"n":"松戸","lat":35.784472,"lon":139.900779},"1132010":{"n":"北松戸","lat":35.800459,"lon":139.911528},"1132011":{"n":"馬橋","lat":35.811682,"lon":139.917305},"1132013":{"n":"北小金","lat":35.833436,"lon":139.931303},"1132014":{"n":"南柏","lat":35.844655,"lon":139.954111},"1132015":{"n":"柏","lat":35.862316,"lon":139.971148},"1132016":{"n":"北柏","lat":35.875623,"lon":139.988035},"1132017":{"n":"我孫子","lat":35.87279,"lon":140.010466},"1132018":{"n":"天王台","lat":35.872558,"lon":140.04121},"1122901":{"n":"取手","lat":35.89553,"lon":140.063004},"1131415":{"n":"佐倉","lat":35.709743,"lon":140.226722},"1132702":{"n":"酒々井","lat":35.731737,"lon":140.275271},"1132703":{"n":"成田","lat":35.777796,"lon":140.313853},"1132813":{"n":"空港第２ビル（第２旅客ターミナル）","lat":35.773327,"lon":140.387871},"1132705":{"n":"成田空港（第１旅客ターミナル）","lat":35.763983,"lon":140.384644},"1132706":{"n":"久住","lat":35.832232,"lon":140.338929},"1132707":{"n":"滑河","lat":35.877079,"lon":140.347871},"1132708":{"n":"下総神崎","lat":35.8948,"lon":140.410657},"1132709":{"n":"大戸","lat":35.890004,"lon":140.457828},"1132710":{"n":"佐原","lat":35.894522,"lon":140.494074},"1132711":{"n":"香取","lat":35.897856,"lon":140.532367},"1132712":{"n":"水郷","lat":35.885508,"lon":140.570181},"1132713":{"n":"小見川","lat":35.849971,"lon":140.604587},"1132714":{"n":"笹川","lat":35.839753,"lon":140.655716},"1132715":{"n":"下総橘","lat":35.818673,"lon":140.702273},"1132716":{"n":"下総豊里","lat":35.792899,"lon":140.721011},"1132717":{"n":"椎柴","lat":35.765204,"lon":140.758875},"1131430":{"n":"松岸","lat":35.739386,"lon":140.795143},"1131431":{"n":"銚子","lat":35.729449,"lon":140.827557},"1132721":{"n":"東我孫子","lat":35.868945,"lon":140.047754},"1132722":{"n":"湖北","lat":35.867165,"lon":140.077959},"1132723":{"n":"新木","lat":35.862352,"lon":140.107048},"1132724":{"n":"布佐","lat":35.849371,"lon":140.13293},"1132725":{"n":"木下","lat":35.838817,"lon":140.147954},"1132726":{"n":"小林","lat":35.830783,"lon":140.193028},"1132727":{"n":"安食","lat":35.835682,"lon":140.242051},"1132728":{"n":"下総松崎","lat":35.807806,"lon":140.27749},"2100201":{"n":"浅草","lat":35.710733,"lon":139.797592},"2800102":{"n":"田原町","lat":35.709897,"lon":139.790897},"2800103":{"n":"稲荷町","lat":35.711273,"lon":139.782593},"2800106":{"n":"末広町","lat":35.702972,"lon":139.771713},"1131402":{"n":"三越前","lat":35.687101,"lon":139.773594},"2800109":{"n":"日本橋","lat":35.682078,"lon":139.773516},"2800110":{"n":"京橋","lat":35.676856,"lon":139.770126},"2800111":{"n":"銀座","lat":35.671989,"lon":139.763965},"2800113":{"n":"虎ノ門","lat":35.670236,"lon":139.749832},"2800114":{"n":"溜池山王","lat":35.673621,"lon":139.741419},"2800115":{"n":"赤坂見附","lat":35.677021,"lon":139.737047},"2800116":{"n":"青山一丁目","lat":35.672765,"lon":139.724159},"2800117":{"n":"外苑前","lat":35.670527,"lon":139.717857},"2800118":{"n":"表参道","lat":35.665247,"lon":139.712314},"2800202":{"n":"新大塚","lat":35.72569,"lon":139.729971},"2800203":{"n":"茗荷谷","lat":35.716989,"lon":139.737184},"2800204":{"n":"後楽園","lat":35.707898,"lon":139.751864},"2800205":{"n":"本郷三丁目","lat":35.706671,"lon":139.759914},"2800208":{"n":"大手町","lat":35.686564,"lon":139.7662},"2800211":{"n":"霞ケ関","lat":35.673838,"lon":139.750899},"2800212":{"n":"国会議事堂前","lat":35.67393,"lon":139.745219},"2800215":{"n":"四谷三丁目","lat":35.687958,"lon":139.720103},"2800216":{"n":"新宿御苑前","lat":35.688588,"lon":139.71069},"2800217":{"n":"新宿三丁目","lat":35.690847,"lon":139.704895},"2800219":{"n":"西新宿","lat":35.694298,"lon":139.692778},"2800220":{"n":"中野坂上","lat":35.69792,"lon":139.68291},"2800221":{"n":"新中野","lat":35.697491,"lon":139.66903},"2800222":{"n":"東高円寺","lat":35.697802,"lon":139.657822},"2800223":{"n":"新高円寺","lat":35.697985,"lon":139.648068},"2800224":{"n":"南阿佐ケ谷","lat":35.699624,"lon":139.63576},"2800226":{"n":"中野新橋","lat":35.692123,"lon":139.673997},"2800227":{"n":"中野富士見町","lat":35.690514,"lon":139.666933},"2800228":{"n":"方南町","lat":35.683496,"lon":139.656498},"2800303":{"n":"三ノ輪","lat":35.729623,"lon":139.791485},"2800304":{"n":"入谷","lat":35.719862,"lon":139.783924},"2800308":{"n":"小伝馬町","lat":35.690737,"lon":139.778433},"2800309":{"n":"人形町","lat":35.686307,"lon":139.782285},"2800310":{"n":"茅場町","lat":35.679752,"lon":139.780005},"2800312":{"n":"築地","lat":35.668115,"lon":139.772603},"2800313":{"n":"東銀座","lat":35.669464,"lon":139.767253},"2800317":{"n":"神谷町","lat":35.662978,"lon":139.745069},"2800318":{"n":"六本木","lat":35.662836,"lon":139.731443},"2800319":{"n":"広尾","lat":35.652279,"lon":139.722202},"2600103":{"n":"中目黒","lat":35.643854,"lon":139.698621},"2800402":{"n":"落合","lat":35.710976,"lon":139.687284},"2800404":{"n":"早稲田","lat":35.705723,"lon":139.721319},"2800405":{"n":"神楽坂","lat":35.70379,"lon":139.734546},"2800407":{"n":"九段下","lat":35.695589,"lon":139.751948},"2800408":{"n":"竹橋","lat":35.690662,"lon":139.756817},"2800412":{"n":"門前仲町","lat":35.671851,"lon":139.796209},"2800413":{"n":"木場","lat":35.669351,"lon":139.807042},"2800414":{"n":"東陽町","lat":35.669629,"lon":139.817596},"2800415":{"n":"南砂町","lat":35.668796,"lon":139.83065},"2800416":{"n":"西葛西","lat":35.664631,"lon":139.859259},"2800417":{"n":"葛西","lat":35.663554,"lon":139.872458},"2800418":{"n":"浦安","lat":35.665932,"lon":139.893193},"2800419":{"n":"南行徳","lat":35.672687,"lon":139.902311},"2800420":{"n":"行徳","lat":35.682686,"lon":139.914254},"2800421":{"n":"妙典","lat":35.690935,"lon":139.924209},"2800422":{"n":"原木中山","lat":35.703517,"lon":139.942029},"2800501":{"n":"北綾瀬","lat":35.777117,"lon":139.832035},"2300104":{"n":"町屋","lat":35.742733,"lon":139.780501},"2800506":{"n":"千駄木","lat":35.725549,"lon":139.763243},"2800507":{"n":"根津","lat":35.7174,"lon":139.765655},"2800508":{"n":"湯島","lat":35.708243,"lon":139.769916},"2800511":{"n":"二重橋前","lat":35.681071,"lon":139.761948},"2800515":{"n":"赤坂","lat":35.67323,"lon":139.738348},"2800516":{"n":"乃木坂","lat":35.666572,"lon":139.726215},"2500104":{"n":"代々木公園","lat":35.669187,"lon":139.689099},"2500105":{"n":"代々木上原","lat":35.669159,"lon":139.680153},"2100111":{"n":"和光市","lat":35.788507,"lon":139.612434},"2100110":{"n":"地下鉄成増","lat":35.776557,"lon":139.631497},"2100109":{"n":"地下鉄赤塚","lat":35.769939,"lon":139.644021},"2800604":{"n":"平和台","lat":35.757863,"lon":139.653762},"2800605":{"n":"氷川台","lat":35.74955,"lon":139.665567},"2200301":{"n":"小竹向原","lat":35.743803,"lon":139.678572},"2800607":{"n":"千川","lat":35.738229,"lon":139.689271},"2800608":{"n":"要町","lat":35.73323,"lon":139.698715},"2800610":{"n":"東池袋","lat":35.725732,"lon":139.719546},"2800611":{"n":"護国寺","lat":35.719044,"lon":139.72754},"2800612":{"n":"江戸川橋","lat":35.709495,"lon":139.733538},"2800615":{"n":"麹町","lat":35.684006,"lon":139.737613},"2800617":{"n":"桜田門","lat":35.677405,"lon":139.75149},"2800621":{"n":"月島","lat":35.664871,"lon":139.784233},"2800622":{"n":"豊洲","lat":35.654908,"lon":139.79621},"2800623":{"n":"辰巳","lat":35.645576,"lon":139.81052},"2800805":{"n":"半蔵門","lat":35.685703,"lon":139.74163},"2800807":{"n":"神保町","lat":35.695966,"lon":139.757606},"2800811":{"n":"清澄白河","lat":35.682105,"lon":139.798851},"2800814":{"n":"住吉","lat":35.689073,"lon":139.815681},"2100203":{"n":"押上〈スカイツリー前〉","lat":35.710702,"lon":139.812935},"2800901":{"n":"赤羽岩淵","lat":35.783417,"lon":139.722103},"2800902":{"n":"志茂","lat":35.777948,"lon":139.732599},"2800903":{"n":"王子神谷","lat":35.765172,"lon":139.735933},"2800905":{"n":"西ケ原","lat":35.746008,"lon":139.742322},"2800907":{"n":"本駒込","lat":35.724155,"lon":139.753828},"2800908":{"n":"東大前","lat":35.717633,"lon":139.758025},"2800915":{"n":"六本木一丁目","lat":35.665595,"lon":139.739},"2800916":{"n":"麻布十番","lat":35.654682,"lon":139.737051},"2800917":{"n":"白金高輪","lat":35.642903,"lon":139.734104},"2800918":{"n":"白金台","lat":35.637917,"lon":139.726133},"2801010":{"n":"雑司が谷","lat":35.720233,"lon":139.714795},"2801011":{"n":"西早稲田","lat":35.708242,"lon":139.709101},"2801012":{"n":"東新宿","lat":35.698915,"lon":139.707593},"2801014":{"n":"北参道","lat":35.678459,"lon":139.705453},"9930101":{"n":"都庁前","lat":35.690551,"lon":139.69257},"9930102":{"n":"新宿西口","lat":35.693315,"lon":139.699155},"9930104":{"n":"若松河田","lat":35.699218,"lon":139.718184},"9930105":{"n":"牛込柳町","lat":35.699518,"lon":139.725027},"9930106":{"n":"牛込神楽坂","lat":35.700851,"lon":139.735802},"2800229":{"n":"春日","lat":35.709598,"lon":139.75325},"9930111":{"n":"新御徒町","lat":35.707045,"lon":139.781958},"9930112":{"n":"蔵前","lat":35.703236,"lon":139.790931},"9930114":{"n":"森下","lat":35.68796,"lon":139.797042},"9930118":{"n":"勝どき","lat":35.658507,"lon":139.776442},"9930119":{"n":"築地市場","lat":35.664895,"lon":139.766915},"9930120":{"n":"汐留","lat":35.663703,"lon":139.760642},"9930121":{"n":"大門","lat":35.656785,"lon":139.75466},"9930122":{"n":"赤羽橋","lat":35.655007,"lon":139.743642},"9930126":{"n":"国立競技場","lat":35.679831,"lon":139.714932},"9930129":{"n":"西新宿五丁目","lat":35.689798,"lon":139.684304},"2200704":{"n":"中井","lat":35.714035,"lon":139.686356},"9930133":{"n":"落合南長崎","lat":35.723608,"lon":139.683303},"9930134":{"n":"新江古田","lat":35.732538,"lon":139.670653},"2200106":{"n":"練馬","lat":35.737404,"lon":139.65477},"2200402":{"n":"豊島園","lat":35.742567043044,"lon":139.64894845621},"9930137":{"n":"練馬春日町","lat":35.751452,"lon":139.640236},"9930138":{"n":"光が丘","lat":35.758526,"lon":139.628603},"9930201":{"n":"西馬込","lat":35.586859,"lon":139.705942},"9930202":{"n":"馬込","lat":35.596435,"lon":139.711772},"2600404":{"n":"中延","lat":35.605769,"lon":139.713736},"2600503":{"n":"戸越","lat":35.614633,"lon":139.716495},"9930206":{"n":"高輪台","lat":35.631679,"lon":139.730305},"2700101":{"n":"泉岳寺","lat":35.638692,"lon":139.74002},"9930208":{"n":"三田","lat":35.64818,"lon":139.748775},"1131403":{"n":"東日本橋","lat":35.692126,"lon":139.784821},"9930219":{"n":"本所吾妻橋","lat":35.70858,"lon":139.804624},"9930305":{"n":"芝公園","lat":35.654074,"lon":139.749824},"9930306":{"n":"御成門","lat":35.661215,"lon":139.751535},"9930307":{"n":"内幸町","lat":35.66975,"lon":139.75561},"9930313":{"n":"白山","lat":35.721408,"lon":139.752136},"9930314":{"n":"千石","lat":35.727957,"lon":139.744792},"9930316":{"n":"西巣鴨","lat":35.743508,"lon":139.728712},"9930317":{"n":"新板橋","lat":35.748785,"lon":139.720101},"9930318":{"n":"板橋区役所前","lat":35.751284,"lon":139.710102},"9930319":{"n":"板橋本町","lat":35.761339,"lon":139.705535},"9930320":{"n":"本蓮沼","lat":35.768782,"lon":139.702324},"9930321":{"n":"志村坂上","lat":35.775725,"lon":139.69538},"9930322":{"n":"志村三丁目","lat":35.777391,"lon":139.685937},"9930323":{"n":"蓮根","lat":35.784335,"lon":139.678993},"9930324":{"n":"西台","lat":35.78699,"lon":139.673971},"9930325":{"n":"高島平","lat":35.789056,"lon":139.661216},"9930326":{"n":"新高島平","lat":35.790189,"lon":139.654275},"9930327":{"n":"西高島平","lat":35.791833,"lon":139.64594},"9930403":{"n":"曙橋","lat":35.692402,"lon":139.722881},"9930408":{"n":"岩本町","lat":35.695534,"lon":139.775866},"9930410":{"n":"浜町","lat":35.688516,"lon":139.788154},"9930412":{"n":"菊川","lat":35.688379,"lon":139.806016},"9930414":{"n":"西大島","lat":35.689349,"lon":139.826206},"9930415":{"n":"大島","lat":35.689905,"lon":139.83565},"9930416":{"n":"東大島","lat":35.690355,"lon":139.845963},"9930417":{"n":"船堀","lat":35.683795,"lon":139.864258},"9930418":{"n":"一之江","lat":35.686055,"lon":139.882934},"9930419":{"n":"瑞江","lat":35.693318,"lon":139.89761},"9930420":{"n":"篠崎","lat":35.706017,"lon":139.903698},"2600102":{"n":"代官山","lat":35.648193,"lon":139.703284},"2600104":{"n":"祐天寺","lat":35.637163,"lon":139.690758},"2600105":{"n":"学芸大学","lat":35.628786,"lon":139.68522},"2600106":{"n":"都立大学","lat":35.617835,"lon":139.676393},"2600107":{"n":"自由が丘","lat":35.607224,"lon":139.668664},"2600108":{"n":"田園調布","lat":35.596815,"lon":139.667356},"2600109":{"n":"多摩川","lat":35.589591,"lon":139.668723},"2600110":{"n":"新丸子","lat":35.58049,"lon":139.661964},"2600112":{"n":"元住吉","lat":35.565698,"lon":139.654668},"2600113":{"n":"日吉","lat":35.5539,"lon":139.646944},"2600114":{"n":"綱島","lat":35.536906,"lon":139.63491},"2600115":{"n":"大倉山","lat":35.52243,"lon":139.629808},"2600117":{"n":"妙蓮寺","lat":35.498779,"lon":139.633194},"2600118":{"n":"白楽","lat":35.489555,"lon":139.627875},"2600119":{"n":"東白楽","lat":35.483523,"lon":139.629364},"2600120":{"n":"反町","lat":35.47474,"lon":139.625337},"2600302":{"n":"池尻大橋","lat":35.650603,"lon":139.684319},"2600303":{"n":"三軒茶屋","lat":35.643716,"lon":139.670156},"2600304":{"n":"駒沢大学","lat":35.633471,"lon":139.661702},"2600305":{"n":"桜新町","lat":35.631666,"lon":139.644779},"2600306":{"n":"用賀","lat":35.626436,"lon":139.633928},"2600307":{"n":"二子玉川","lat":35.611788,"lon":139.626685},"2600308":{"n":"二子新地","lat":35.606994,"lon":139.622338},"2600309":{"n":"高津","lat":35.603248,"lon":139.616934},"2600311":{"n":"梶が谷","lat":35.593963,"lon":139.605885},"2600312":{"n":"宮崎台","lat":35.587228,"lon":139.591313},"2600313":{"n":"宮前平","lat":35.584951,"lon":139.581983},"2600314":{"n":"鷺沼","lat":35.579762,"lon":139.573268},"2600315":{"n":"たまプラーザ","lat":35.577427,"lon":139.558447},"2600316":{"n":"あざみ野","lat":35.568645,"lon":139.553462},"2600317":{"n":"江田","lat":35.558671,"lon":139.551518},"2600318":{"n":"市が尾","lat":35.551483,"lon":139.541496},"2600319":{"n":"藤が丘","lat":35.543454,"lon":139.527655},"2600320":{"n":"青葉台","lat":35.542855,"lon":139.517376},"2600321":{"n":"田奈","lat":35.536204,"lon":139.504855},"2600323":{"n":"つくし野","lat":35.527559,"lon":139.485139},"2600324":{"n":"すずかけ台","lat":35.517094,"lon":139.481684},"2600325":{"n":"南町田グランベリーパーク","lat":35.511502,"lon":139.470318},"2600326":{"n":"つきみ野","lat":35.510546,"lon":139.458651},"2500203":{"n":"中央林間","lat":35.507671,"lon":139.444935},"2600202":{"n":"不動前","lat":35.626526,"lon":139.71469},"2600203":{"n":"武蔵小山","lat":35.620538,"lon":139.704524},"2600204":{"n":"西小山","lat":35.615455,"lon":139.698694},"2600205":{"n":"洗足","lat":35.61043,"lon":139.694367},"2600206":{"n":"大岡山","lat":35.607456,"lon":139.685909},"2600207":{"n":"奥沢","lat":35.603947,"lon":139.672355},"2600402":{"n":"下神明","lat":35.608704,"lon":139.726256},"2600403":{"n":"戸越公園","lat":35.608856,"lon":139.718159},"2600405":{"n":"荏原町","lat":35.60382,"lon":139.707571},"2600406":{"n":"旗の台","lat":35.604923,"lon":139.702286},"2600407":{"n":"北千束","lat":35.606311,"lon":139.693303},"2600409":{"n":"緑が丘","lat":35.60638,"lon":139.679482},"2600411":{"n":"九品仏","lat":35.60538,"lon":139.660992},"2600412":{"n":"尾山台","lat":35.606971,"lon":139.653862},"2600413":{"n":"等々力","lat":35.608369,"lon":139.647938},"2600414":{"n":"上野毛","lat":35.611957,"lon":139.638917},"2600502":{"n":"大崎広小路","lat":35.622244,"lon":139.722339},"2600504":{"n":"荏原中延","lat":35.610056,"lon":139.712196},"2600506":{"n":"長原","lat":35.60219,"lon":139.697881},"2600507":{"n":"洗足池","lat":35.599648,"lon":139.690896},"2600508":{"n":"石川台","lat":35.596888,"lon":139.685063},"2600509":{"n":"雪が谷大塚","lat":35.592038,"lon":139.681083},"2600510":{"n":"御嶽山","lat":35.585236,"lon":139.682473},"2600511":{"n":"久が原","lat":35.579499,"lon":139.685678},"2600512":{"n":"千鳥町","lat":35.572983,"lon":139.69142},"2600513":{"n":"池上","lat":35.572025,"lon":139.702822},"2600514":{"n":"蓮沼","lat":35.564173,"lon":139.708544},"2600602":{"n":"沼部","lat":35.582526,"lon":139.67326},"2600603":{"n":"鵜の木","lat":35.575452,"lon":139.680554},"2600604":{"n":"下丸子","lat":35.571397,"lon":139.685576},"2600605":{"n":"武蔵新田","lat":35.567806,"lon":139.692506},"2600606":{"n":"矢口渡","lat":35.562462,"lon":139.700389},"2500102":{"n":"南新宿","lat":35.683483,"lon":139.69867},"2500103":{"n":"参宮橋","lat":35.678586,"lon":139.693568},"2500106":{"n":"東北沢","lat":35.665379,"lon":139.673014},"2400605":{"n":"下北沢","lat":35.661655,"lon":139.667516},"2500108":{"n":"世田谷代田","lat":35.65834,"lon":139.661557},"2500109":{"n":"梅ヶ丘","lat":35.656024,"lon":139.653628},"2500110":{"n":"豪徳寺","lat":35.653807,"lon":139.647381},"2500111":{"n":"経堂","lat":35.650991,"lon":139.635993},"2500112":{"n":"千歳船橋","lat":35.647616,"lon":139.624544},"2500113":{"n":"祖師ヶ谷大蔵","lat":35.643236,"lon":139.609659},"2500114":{"n":"成城学園前","lat":35.640114,"lon":139.598958},"2500115":{"n":"喜多見","lat":35.636697,"lon":139.587445},"2500116":{"n":"狛江","lat":35.632001,"lon":139.577127},"2500117":{"n":"和泉多摩川","lat":35.627349,"lon":139.573695},"2500119":{"n":"向ヶ丘遊園","lat":35.617273,"lon":139.564719},"2500120":{"n":"生田","lat":35.614954,"lon":139.542024},"2500121":{"n":"読売ランド前","lat":35.614723,"lon":139.527903},"2500122":{"n":"百合ヶ丘","lat":35.60903,"lon":139.516121},"2500123":{"n":"新百合ヶ丘","lat":35.603705,"lon":139.507608},"2500124":{"n":"柿生","lat":35.589597,"lon":139.497614},"2500125":{"n":"鶴川","lat":35.583077,"lon":139.481759},"2500126":{"n":"玉川学園前","lat":35.563486,"lon":139.463388},"2500128":{"n":"相模大野","lat":35.532208,"lon":139.437836},"2500129":{"n":"小田急相模原","lat":35.515134,"lon":139.422571},"2500130":{"n":"相武台前","lat":35.499294,"lon":139.408509},"2500131":{"n":"座間","lat":35.480913,"lon":139.399899},"1130910":{"n":"海老名","lat":35.452709,"lon":139.390905},"1130909":{"n":"厚木","lat":35.443081,"lon":139.377896},"2500134":{"n":"本厚木","lat":35.439338,"lon":139.364261},"2500135":{"n":"愛甲石田","lat":35.417634,"lon":139.344098},"2500136":{"n":"伊勢原","lat":35.396081,"lon":139.313768},"2500137":{"n":"鶴巻温泉","lat":35.381131,"lon":139.277813},"2500138":{"n":"東海大学前","lat":35.373151,"lon":139.271236},"2500139":{"n":"秦野","lat":35.370075,"lon":139.226009},"2500140":{"n":"渋沢","lat":35.374032,"lon":139.184405},"2500141":{"n":"新松田","lat":35.345082,"lon":139.139848},"2500142":{"n":"開成","lat":35.326532,"lon":139.135785},"2500143":{"n":"栢山","lat":35.310679,"lon":139.14258},"2500144":{"n":"富水","lat":35.296759,"lon":139.145166},"2500145":{"n":"螢田","lat":35.285055,"lon":139.152036},"2500146":{"n":"足柄","lat":35.271763,"lon":139.15447},"1130116":{"n":"小田原","lat":35.256229,"lon":139.155396},"2500202":{"n":"東林間","lat":35.520541,"lon":139.438883},"2500204":{"n":"南林間","lat":35.495627,"lon":139.447911},"2500205":{"n":"鶴間","lat":35.49057,"lon":139.450572},"2500206":{"n":"大和","lat":35.46965,"lon":139.461553},"2500207":{"n":"桜ヶ丘","lat":35.450486,"lon":139.465734},"2500208":{"n":"高座渋谷","lat":35.432519,"lon":139.464854},"2500209":{"n":"長後","lat":35.41261,"lon":139.465307},"2500210":{"n":"湘南台","lat":35.396488,"lon":139.466451},"2500211":{"n":"六会日大前","lat":35.383761,"lon":139.470665},"2500212":{"n":"善行","lat":35.36285,"lon":139.473199},"2500213":{"n":"藤沢本町","lat":35.348188,"lon":139.476046},"1130108":{"n":"藤沢","lat":35.338558,"lon":139.486971},"2500215":{"n":"本鵠沼","lat":35.331129,"lon":139.475412},"2500216":{"n":"鵠沼海岸","lat":35.320744,"lon":139.47121},"2500217":{"n":"片瀬江ノ島","lat":35.309345,"lon":139.482934},"2400104":{"n":"笹塚","lat":35.673758,"lon":139.667251},"2400105":{"n":"代田橋","lat":35.671092,"lon":139.659413},"2400106":{"n":"明大前","lat":35.668758,"lon":139.650352},"2400107":{"n":"下高井戸","lat":35.66615,"lon":139.641372},"2400108":{"n":"桜上水","lat":35.66768,"lon":139.63129},"2400109":{"n":"上北沢","lat":35.668857,"lon":139.62329},"2400110":{"n":"八幡山","lat":35.669982,"lon":139.614927},"2400111":{"n":"芦花公園","lat":35.670479,"lon":139.608247},"2400112":{"n":"千歳烏山","lat":35.667921,"lon":139.60067},"2400113":{"n":"仙川","lat":35.662257,"lon":139.584908},"2400114":{"n":"つつじヶ丘","lat":35.657936,"lon":139.575103},"2400115":{"n":"柴崎","lat":35.653997,"lon":139.56658},"2400116":{"n":"国領","lat":35.650087,"lon":139.558036},"2400117":{"n":"布田","lat":35.649904,"lon":139.551557},"2400118":{"n":"調布","lat":35.652181,"lon":139.543988},"2400119":{"n":"西調布","lat":35.657169,"lon":139.529822},"2400120":{"n":"飛田給","lat":35.660121,"lon":139.523666},"2400121":{"n":"武蔵野台","lat":35.664159,"lon":139.511289},"2400122":{"n":"多磨霊園","lat":35.666197,"lon":139.502615},"2400123":{"n":"東府中","lat":35.668766,"lon":139.495257},"2400124":{"n":"府中","lat":35.672245,"lon":139.4799},"2400126":{"n":"中河原","lat":35.659549,"lon":139.457602},"2400127":{"n":"聖蹟桜ヶ丘","lat":35.650814,"lon":139.446979},"2400128":{"n":"百草園","lat":35.657362,"lon":139.431285},"2400129":{"n":"高幡不動","lat":35.662361,"lon":139.412953},"2400130":{"n":"南平","lat":35.654559,"lon":139.392008},"2400131":{"n":"平山城址公園","lat":35.647371,"lon":139.379926},"2400132":{"n":"長沼","lat":35.642788,"lon":139.365849},"2400133":{"n":"北野","lat":35.644479,"lon":139.354489},"2400134":{"n":"京王八王子","lat":35.657416,"lon":139.343851},"2400602":{"n":"神泉","lat":35.657244,"lon":139.693579},"2400603":{"n":"駒場東大前","lat":35.65868,"lon":139.684308},"2400604":{"n":"池ノ上","lat":35.660402,"lon":139.67344},"2400606":{"n":"新代田","lat":35.662593,"lon":139.660524},"2400607":{"n":"東松原","lat":35.662634,"lon":139.655535},"2400609":{"n":"永福町","lat":35.67629,"lon":139.642733},"2400610":{"n":"西永福","lat":35.678918,"lon":139.634936},"2400611":{"n":"浜田山","lat":35.681603,"lon":139.627528},"2400612":{"n":"高井戸","lat":35.683253,"lon":139.615115},"2400613":{"n":"富士見ヶ丘","lat":35.684805,"lon":139.607072},"2400614":{"n":"久我山","lat":35.688138,"lon":139.599211},"2400615":{"n":"三鷹台","lat":35.692046,"lon":139.589298},"2400616":{"n":"井の頭公園","lat":35.697304,"lon":139.583112},"2200102":{"n":"椎名町","lat":35.726572,"lon":139.694363},"2200103":{"n":"東長崎","lat":35.73003,"lon":139.683294},"2200104":{"n":"江古田","lat":35.737557,"lon":139.672814},"2200105":{"n":"桜台","lat":35.738797,"lon":139.662602},"2200107":{"n":"中村橋","lat":35.736767,"lon":139.637456},"2200108":{"n":"富士見台","lat":35.735867,"lon":139.62969},"2200109":{"n":"練馬高野台","lat":35.740622,"lon":139.616749},"2200110":{"n":"石神井公園","lat":35.743563,"lon":139.606981},"2200111":{"n":"大泉学園","lat":35.749406,"lon":139.586732},"2200112":{"n":"保谷","lat":35.748222,"lon":139.567753},"2200113":{"n":"ひばりヶ丘","lat":35.751485,"lon":139.545852},"2200114":{"n":"東久留米","lat":35.760445,"lon":139.533739},"2200115":{"n":"清瀬","lat":35.772221,"lon":139.519917},"2200116":{"n":"秋津","lat":35.778614,"lon":139.496539},"2200131":{"n":"所沢","lat":35.786627,"lon":139.473324},"2200117":{"n":"西所沢","lat":35.789303,"lon":139.455959},"2200118":{"n":"小手指","lat":35.800535,"lon":139.438016},"2200119":{"n":"狭山ヶ丘","lat":35.810445,"lon":139.416975},"2200120":{"n":"武蔵藤沢","lat":35.820963,"lon":139.412736},"2200121":{"n":"稲荷山公園","lat":35.845112,"lon":139.39842},"2200122":{"n":"入間市","lat":35.842904,"lon":139.390294},"2200123":{"n":"仏子","lat":35.83769,"lon":139.360115},"2200124":{"n":"元加治","lat":35.84058,"lon":139.345316},"2200125":{"n":"飯能","lat":35.851189,"lon":139.318824},"1131708":{"n":"東飯能","lat":35.852928,"lon":139.325965},"2200127":{"n":"高麗","lat":35.881982,"lon":139.304414},"2200128":{"n":"武蔵横手","lat":35.885256,"lon":139.280667},"2200129":{"n":"東吾野","lat":35.892439,"lon":139.260281},"2200130":{"n":"吾野","lat":35.908502,"lon":139.226787},"2200701":{"n":"西武新宿","lat":35.696254,"lon":139.7},"2200703":{"n":"下落合","lat":35.715846,"lon":139.695391},"2200705":{"n":"新井薬師前","lat":35.715778,"lon":139.672582},"2200706":{"n":"沼袋","lat":35.719458,"lon":139.663841},"2200707":{"n":"野方","lat":35.719658,"lon":139.652733},"2200708":{"n":"都立家政","lat":35.722313,"lon":139.644839},"2200709":{"n":"鷺ノ宮","lat":35.722605,"lon":139.63892},"2200710":{"n":"下井草","lat":35.723852,"lon":139.624688},"2200711":{"n":"井荻","lat":35.72469,"lon":139.615303},"2200712":{"n":"上井草","lat":35.725326,"lon":139.602937},"2200713":{"n":"上石神井","lat":35.726189,"lon":139.592266},"2200714":{"n":"武蔵関","lat":35.7276,"lon":139.576417},"2200715":{"n":"東伏見","lat":35.728761,"lon":139.563529},"2200716":{"n":"西武柳沢","lat":35.728621,"lon":139.552477},"2200717":{"n":"田無","lat":35.727307,"lon":139.539259},"2200718":{"n":"花小金井","lat":35.726129,"lon":139.513228},"2200719":{"n":"小平","lat":35.736963,"lon":139.488491},"2200720":{"n":"久米川","lat":35.749575,"lon":139.472653},"2200721":{"n":"東村山","lat":35.76006,"lon":139.465839},"2200723":{"n":"航空公園","lat":35.798272,"lon":139.465641},"2200724":{"n":"新所沢","lat":35.805854,"lon":139.457069},"2200725":{"n":"入曽","lat":35.832481,"lon":139.427304},"2200726":{"n":"狭山市","lat":35.856936,"lon":139.413015},"2200727":{"n":"新狭山","lat":35.873993,"lon":139.433499},"2200728":{"n":"南大塚","lat":35.889663,"lon":139.454189},"2200729":{"n":"本川越","lat":35.913524,"lon":139.481125},"2200302":{"n":"新桜台","lat":35.74077,"lon":139.6683},"2100102":{"n":"北池袋","lat":35.741283,"lon":139.716749},"2100103":{"n":"下板橋","lat":35.745721,"lon":139.714785},"2100104":{"n":"大山","lat":35.748398,"lon":139.702589},"2100105":{"n":"中板橋","lat":35.756214,"lon":139.694628},"2100106":{"n":"ときわ台","lat":35.758771,"lon":139.689015},"2100107":{"n":"上板橋","lat":35.763596,"lon":139.67641},"2100108":{"n":"東武練馬","lat":35.768698,"lon":139.661964},"2100112":{"n":"朝霞","lat":35.796736,"lon":139.600321},"2100114":{"n":"志木","lat":35.822105,"lon":139.575367},"2100115":{"n":"柳瀬川","lat":35.830723,"lon":139.562071},"2100116":{"n":"みずほ台","lat":35.838233,"lon":139.55078},"2100117":{"n":"鶴瀬","lat":35.845776,"lon":139.539347},"2100118":{"n":"ふじみ野","lat":35.860735,"lon":139.523389},"2100119":{"n":"上福岡","lat":35.873855,"lon":139.511782},"2100120":{"n":"新河岸","lat":35.890911,"lon":139.497257},"2100122":{"n":"川越市","lat":35.914146,"lon":139.476989},"2100123":{"n":"霞ヶ関","lat":35.925635,"lon":139.442897},"2100124":{"n":"鶴ヶ島","lat":35.936771,"lon":139.423825},"2100125":{"n":"若葉","lat":35.948919,"lon":139.408782},"2100126":{"n":"坂戸","lat":35.957181,"lon":139.394032},"2100127":{"n":"北坂戸","lat":35.972098,"lon":139.396932},"2100128":{"n":"高坂","lat":36.002572,"lon":139.397747},"2100129":{"n":"東松山","lat":36.034608,"lon":139.401651},"2100130":{"n":"森林公園","lat":36.045239,"lon":139.374947},"2100131":{"n":"つきのわ","lat":36.04352,"lon":139.345541},"2100132":{"n":"武蔵嵐山","lat":36.044001,"lon":139.32829},"1131805":{"n":"小川町","lat":36.05903,"lon":139.260412},"2100134":{"n":"東武竹沢","lat":36.0754,"lon":139.237591},"2100139":{"n":"みなみ寄居","lat":36.092417,"lon":139.2365},"2100135":{"n":"男衾","lat":36.107415,"lon":139.234442},"2100136":{"n":"鉢形","lat":36.11378,"lon":139.208649},"2100137":{"n":"玉淀","lat":36.117071,"lon":139.200052},"1131808":{"n":"寄居","lat":36.117597,"lon":139.194508},"2100202":{"n":"とうきょうスカイツリー","lat":35.71043,"lon":139.809332},"2100204":{"n":"曳舟","lat":35.718418,"lon":139.816634},"2100205":{"n":"東向島","lat":35.724324,"lon":139.819306},"2100206":{"n":"鐘ヶ淵","lat":35.733712,"lon":139.820344},"2100207":{"n":"堀切","lat":35.742977,"lon":139.817727},"2100208":{"n":"牛田","lat":35.744555,"lon":139.811816},"2100210":{"n":"小菅","lat":35.759039,"lon":139.812935},"2100211":{"n":"五反野","lat":35.765852,"lon":139.809643},"2100212":{"n":"梅島","lat":35.772437,"lon":139.797916},"2100213":{"n":"西新井","lat":35.777323,"lon":139.790372},"2100214":{"n":"竹ノ塚","lat":35.794368,"lon":139.790788},"2100215":{"n":"谷塚","lat":35.814926,"lon":139.801483},"2100216":{"n":"草加","lat":35.828476,"lon":139.803397},"2100217":{"n":"獨協大学前〈草加松原〉","lat":35.84333,"lon":139.800622},"2100218":{"n":"新田","lat":35.854086,"lon":139.795391},"2100219":{"n":"蒲生","lat":35.866851,"lon":139.791686},"2100221":{"n":"越谷","lat":35.887529,"lon":139.786213},"2100222":{"n":"北越谷","lat":35.901724,"lon":139.780008},"2100223":{"n":"大袋","lat":35.92437,"lon":139.777868},"2100224":{"n":"せんげん台","lat":35.935832,"lon":139.774478},"2100225":{"n":"武里","lat":35.949102,"lon":139.770675},"2100226":{"n":"一ノ割","lat":35.96412,"lon":139.766219},"2100227":{"n":"春日部","lat":35.980095,"lon":139.752345},"2100228":{"n":"北春日部","lat":35.990655,"lon":139.744012},"2100229":{"n":"姫宮","lat":36.004384,"lon":139.738674},"2100230":{"n":"東武動物公園","lat":36.024604,"lon":139.726901},"2100231":{"n":"和戸","lat":36.039562,"lon":139.701156},"1131912":{"n":"久喜","lat":36.065684,"lon":139.67727},"2100233":{"n":"鷲宮","lat":36.09626,"lon":139.656945},"2100234":{"n":"花崎","lat":36.109891,"lon":139.633522},"2100235":{"n":"加須","lat":36.122992,"lon":139.595584},"2100236":{"n":"南羽生","lat":36.14959,"lon":139.55696},"2100237":{"n":"羽生","lat":36.170345,"lon":139.533949},"2100238":{"n":"川俣","lat":36.208778,"lon":139.52652},"2100239":{"n":"茂林寺前","lat":36.226331,"lon":139.527058},"2100240":{"n":"館林","lat":36.246606,"lon":139.527811},"2100241":{"n":"多々良","lat":36.273732,"lon":139.500179},"2100242":{"n":"県","lat":36.290615,"lon":139.472336},"2100243":{"n":"福居","lat":36.305208,"lon":139.458634},"2100244":{"n":"東武和泉","lat":36.315595,"lon":139.45509},"2100245":{"n":"足利市","lat":36.32948,"lon":139.448113},"2100246":{"n":"野州山辺","lat":36.32633,"lon":139.431981},"2100247":{"n":"韮川","lat":36.307913,"lon":139.401704},"2100248":{"n":"太田","lat":36.294228,"lon":139.378779},"2100249":{"n":"細谷","lat":36.282523,"lon":139.348509},"2100250":{"n":"木崎","lat":36.271393,"lon":139.312988},"2700103":{"n":"北品川","lat":35.622458,"lon":139.739191},"2700104":{"n":"新馬場","lat":35.61762,"lon":139.741366},"2700105":{"n":"青物横丁","lat":35.609351,"lon":139.742958},"2700106":{"n":"鮫洲","lat":35.604977,"lon":139.742227},"2700107":{"n":"立会川","lat":35.598489,"lon":139.738886},"2700108":{"n":"大森海岸","lat":35.587576,"lon":139.73544},"2700109":{"n":"平和島","lat":35.57868,"lon":139.73491},"2700110":{"n":"大森町","lat":35.572431,"lon":139.732027},"2700111":{"n":"梅屋敷","lat":35.566873,"lon":139.728266},"2700112":{"n":"京急蒲田","lat":35.560796,"lon":139.723681},"2700113":{"n":"雑色","lat":35.549725,"lon":139.715005},"2700114":{"n":"六郷土手","lat":35.540577,"lon":139.7076},"2700115":{"n":"京急川崎","lat":35.53285,"lon":139.700893},"2700117":{"n":"鶴見市場","lat":35.517594,"lon":139.68642},"2700119":{"n":"花月総持寺","lat":35.500358,"lon":139.672813},"2700120":{"n":"生麦","lat":35.4956,"lon":139.6673},"2700122":{"n":"子安","lat":35.484556,"lon":139.644965},"2700123":{"n":"神奈川新町","lat":35.481559,"lon":139.640152},"2700125":{"n":"神奈川","lat":35.471304,"lon":139.627364},"2700127":{"n":"戸部","lat":35.456631,"lon":139.61956},"2700128":{"n":"日ノ出町","lat":35.445524,"lon":139.626696},"2700129":{"n":"黄金町","lat":35.439694,"lon":139.62246},"2700130":{"n":"南太田","lat":35.436923,"lon":139.613408},"2700131":{"n":"井土ヶ谷","lat":35.433895,"lon":139.60061},"2700132":{"n":"弘明寺","lat":35.42437,"lon":139.596791},"2700133":{"n":"上大岡","lat":35.409418,"lon":139.596552},"2700134":{"n":"屏風浦","lat":35.394176,"lon":139.610387},"2700135":{"n":"杉田","lat":35.383796,"lon":139.615734},"2700136":{"n":"京急富岡","lat":35.366743,"lon":139.629772},"2700137":{"n":"能見台","lat":35.360528,"lon":139.629233},"2700138":{"n":"金沢文庫","lat":35.342966,"lon":139.621606},"2700139":{"n":"金沢八景","lat":35.331223,"lon":139.62018},"2700140":{"n":"追浜","lat":35.315461,"lon":139.624905},"2700141":{"n":"京急田浦","lat":35.300892,"lon":139.625252},"2700142":{"n":"安針塚","lat":35.286641,"lon":139.64292},"2700143":{"n":"逸見","lat":35.28048,"lon":139.653149},"2700144":{"n":"汐入","lat":35.280241,"lon":139.662443},"2700145":{"n":"横須賀中央","lat":35.27858,"lon":139.670217},"2700146":{"n":"県立大学","lat":35.269731,"lon":139.677033},"2700147":{"n":"堀ノ内","lat":35.26322,"lon":139.686932},"2700148":{"n":"京急大津","lat":35.261068,"lon":139.695334},"2700149":{"n":"馬堀海岸","lat":35.259651,"lon":139.707328},"2700150":{"n":"浦賀","lat":35.250933,"lon":139.714999},"2700202":{"n":"糀谷","lat":35.5545,"lon":139.72962},"2700203":{"n":"大鳥居","lat":35.552531,"lon":139.739356},"2700204":{"n":"穴守稲荷","lat":35.550326,"lon":139.746669},"2700205":{"n":"天空橋","lat":35.548908,"lon":139.75423},"2700207":{"n":"羽田空港第3ターミナル","lat":35.544676,"lon":139.768968},"2700206":{"n":"羽田空港第1・第2ターミナル","lat":35.549809,"lon":139.785962},"2900102":{"n":"平沼橋","lat":35.460355,"lon":139.616897},"2900103":{"n":"西横浜","lat":35.453437,"lon":139.608745},"2900104":{"n":"天王町","lat":35.453984,"lon":139.602554},"2900105":{"n":"星川","lat":35.458634,"lon":139.594816},"2900106":{"n":"和田町","lat":35.463597,"lon":139.586786},"2900107":{"n":"上星川","lat":35.467694,"lon":139.580078},"2900108":{"n":"西谷","lat":35.478092,"lon":139.565721},"2900109":{"n":"鶴ヶ峰","lat":35.475031,"lon":139.549586},"2900110":{"n":"二俣川","lat":35.463335,"lon":139.532207},"2900111":{"n":"希望ヶ丘","lat":35.460399,"lon":139.5143},"2900112":{"n":"三ツ境","lat":35.467779,"lon":139.502662},"2900113":{"n":"瀬谷","lat":35.470412,"lon":139.482574},"2900115":{"n":"相模大塚","lat":35.470666,"lon":139.441232},"2900116":{"n":"さがみ野","lat":35.471485,"lon":139.429055},"2900117":{"n":"かしわ台","lat":35.466744,"lon":139.415851},"2900202":{"n":"南万騎が原","lat":35.452522,"lon":139.526344},"2900203":{"n":"緑園都市","lat":35.439502,"lon":139.521841},"2900204":{"n":"弥生台","lat":35.429933,"lon":139.506615},"2900205":{"n":"いずみ野","lat":35.429434,"lon":139.495135},"2900206":{"n":"いずみ中央","lat":35.415385,"lon":139.48727},"2900207":{"n":"ゆめが丘","lat":35.405436,"lon":139.482192},"2900301":{"n":"羽沢横浜国大","lat":35.481389,"lon":139.586389},"9930903":{"n":"浅草","lat":35.713817,"lon":139.792389},"9930906":{"n":"青井","lat":35.771782,"lon":139.82038},"9930907":{"n":"六町","lat":35.784963,"lon":139.821816},"9930908":{"n":"八潮","lat":35.807905,"lon":139.845017},"9930909":{"n":"三郷中央","lat":35.824514,"lon":139.878344},"9930911":{"n":"流山セントラルパーク","lat":35.854552,"lon":139.915223},"2100422":{"n":"流山おおたかの森","lat":35.871799,"lon":139.925044},"9930913":{"n":"柏の葉キャンパス","lat":35.89308,"lon":139.952454},"9930914":{"n":"柏たなか","lat":35.9109,"lon":139.957533},"9930915":{"n":"守谷","lat":35.950626,"lon":139.992209},"9930916":{"n":"みらい平","lat":35.99514,"lon":140.038555},"9930917":{"n":"みどりの","lat":36.03025,"lon":140.056276},"9930918":{"n":"万博記念公園","lat":36.05841,"lon":140.059256},"9930919":{"n":"研究学園","lat":36.0821,"lon":140.082256},"9930920":{"n":"つくば","lat":36.0825,"lon":140.110604},"9931103":{"n":"竹芝","lat":35.654099,"lon":139.762037},"9931104":{"n":"日の出","lat":35.649136,"lon":139.75906},"9931105":{"n":"芝浦ふ頭","lat":35.641773,"lon":139.757852},"9931106":{"n":"お台場海浜公園","lat":35.629813,"lon":139.778607},"9931107":{"n":"台場","lat":35.625908,"lon":139.771435},"9931108":{"n":"東京国際クルーズターミナル","lat":35.621462,"lon":139.773157},"9931109":{"n":"テレコムセンター","lat":35.617593,"lon":139.779327},"9931110":{"n":"青海","lat":35.62467,"lon":139.781132},"9931111":{"n":"東京ビッグサイト","lat":35.630158,"lon":139.791228},"9931112":{"n":"有明","lat":35.634596,"lon":139.793269},"9931113":{"n":"有明テニスの森","lat":35.639964,"lon":139.78888},"9931114":{"n":"市場前","lat":35.645684,"lon":139.78564},"9931115":{"n":"新豊洲","lat":35.648718,"lon":139.789996},"9933702":{"n":"東雲","lat":35.640987,"lon":139.804395},"9933703":{"n":"国際展示場","lat":35.63441,"lon":139.791617},"9933704":{"n":"東京テレポート","lat":35.62753,"lon":139.778896},"9933602":{"n":"天王洲アイル","lat":35.620562,"lon":139.750793},"9933706":{"n":"品川シーサイド","lat":35.608524,"lon":139.749549},"9931002":{"n":"新高島","lat":35.46192,"lon":139.626499},"9931003":{"n":"みなとみらい","lat":35.458028,"lon":139.632386},"9931004":{"n":"馬車道","lat":35.450135,"lon":139.636175},"9931005":{"n":"日本大通り","lat":35.446821,"lon":139.642608},"9931006":{"n":"元町・中華街","lat":35.44243,"lon":139.650446},"1131411":{"n":"東千葉","lat":35.617014,"lon":140.122261},"1131412":{"n":"都賀","lat":35.636088,"lon":140.149222},"1131413":{"n":"四街道","lat":35.662756,"lon":140.165023},"1131414":{"n":"物井","lat":35.68566,"lon":140.200263},"1131416":{"n":"南酒々井","lat":35.704217,"lon":140.267828},"1131417":{"n":"榎戸","lat":35.683967,"lon":140.288136},"1131418":{"n":"八街","lat":35.663228,"lon":140.317304},"1131419":{"n":"日向","lat":35.628402,"lon":140.362447},"1131420":{"n":"成東","lat":35.608513,"lon":140.410109},"1131421":{"n":"松尾","lat":35.63604,"lon":140.457587},"1131422":{"n":"横芝","lat":35.661739,"lon":140.490736},"1131423":{"n":"飯倉","lat":35.685638,"lon":140.522328},"1131424":{"n":"八日市場","lat":35.699317,"lon":140.552419},"1131425":{"n":"干潟","lat":35.718308,"lon":140.603304},"1131426":{"n":"旭","lat":35.721831,"lon":140.655041},"1131427":{"n":"飯岡","lat":35.729339,"lon":140.683896},"1131428":{"n":"倉橋","lat":35.737836,"lon":140.714018},"1131429":{"n":"猿田","lat":35.747383,"lon":140.7374},"9933603":{"n":"大井競馬場前","lat":35.595006,"lon":139.74708},"9933604":{"n":"流通センター","lat":35.58186,"lon":139.748964},"9933605":{"n":"昭和島","lat":35.570656,"lon":139.749918},"9933606":{"n":"整備場","lat":35.555125,"lon":139.753366},"9933608":{"n":"新整備場","lat":35.542773,"lon":139.786777},"1130109":{"n":"辻堂","lat":35.336847,"lon":139.447106},"1130110":{"n":"茅ケ崎","lat":35.330741,"lon":139.407197},"1130111":{"n":"平塚","lat":35.327647,"lon":139.349063},"1130112":{"n":"大磯","lat":35.311299,"lon":139.313388},"1130113":{"n":"二宮","lat":35.298644,"lon":139.256925},"1130114":{"n":"国府津","lat":35.280832,"lon":139.212932},"1130115":{"n":"鴨宮","lat":35.275744,"lon":139.180147},"1130117":{"n":"早川","lat":35.238875,"lon":139.145014},"1130118":{"n":"根府川","lat":35.202455,"lon":139.138504},"1130119":{"n":"真鶴","lat":35.156837,"lon":139.132148},"1130120":{"n":"湯河原","lat":35.146178,"lon":139.102142},"1130121":{"n":"熱海","lat":35.103573,"lon":139.077679}},"lines":{"11302":{"name":"JR山手線","g":[1130201,1130202,1130203,1130204,1130205,1130206,1130207,1130208,1130209,1130210,1130211,1130212,1130213,1130214,1130215,1130216,1130217,1130218,1130219,1130220,1130221,1130222,1130223,1130101,1130225,1130102,1130227,1130228,1130230,1130103]},"11312":{"name":"JR中央線(快速)","g":[1130101,1130223,1131203,1131102,1130208,1131214,1131215,1131216,1131217,1131218,1131104,1131105,1131221,1131222,1131223,1131106,1130503,1131226,1130325,1131108,1131109,1130620,1131111,1131112]},"11332":{"name":"JR京浜東北線","g":[1131906,1131905,1133203,1133204,1131904,1130511,1133207,1133208,1133209,1131903,1133211,1133212,1133213,1130216,1130217,1130218,1130219,1130220,1130221,1130222,1130223,1130101,1130225,1130102,1130227,1130228,1130230,1130103,1133228,1133229,1133230,1130104,1130401,1133233,1130601,1130105]},"11313":{"name":"JR中央・総武線","g":[1131105,1131104,1131218,1131217,1131216,1131215,1131214,1131308,1131309,1130208,1130207,1131312,1131313,1131102,1131315,1131316,1131317,1131203,1130222,1131320,1131321,1131322,1131323,1131324,1131325,1131326,1131327,1131328,1131329,1130524,1131331,1131332,1131333,1131334,1131335,1131336,1131337,1131338,1131339]},"11321":{"name":"JR埼京線","g":[1130201,1130204,1130205,1130208,1130212,1132106,1132107,1131903,1132109,1132110,1132111,1132112,1132113,1130510,1132115,1132116,1132117,1132118,1131906,1132120,1132121,1132122,1132123]},"11333":{"name":"JR湘南新宿ライン","g":[1131906,1131904,1131903,1130212,1130208,1130205,1130204,1130201,1130804,1130307,1130805,1130105,1130807,1130808,1130106,1130107]},"11306":{"name":"JR横浜線","g":[1130601,1130602,1130603,1130604,1130605,1130606,1130607,1130608,1130609,1130610,1130611,1130612,1130613,1130614,1130615,1130616,1130617,1130618,1130619,1130620]},"11303":{"name":"JR南武線","g":[1130328,1130330,1130327,1130326,1130104,1130302,1130303,1130304,1130305,1130306,1130307,1130308,1130309,1130310,1130311,1130312,1130313,1130314,1130315,1130316,1130317,1130318,1130319,1130320,1130321,1130329,1130322,1130323,1130324,1130325]},"11305":{"name":"JR武蔵野線","g":[1130320,1130502,1130503,1130504,1130505,1130506,1130507,1130508,1130509,1130510,1130511,1130512,1130513,1130514,1130525,1130515,1130526,1130516,1130517,1130518,1130519,1130520,1130521,1130522,1130523,1130524]},"11326":{"name":"JR京葉線","g":[1130101,1132602,1132603,1132604,1132605,1132606,1132607,1132608,1132609,1130524,1132611,1132612,1132613,1132619,1132614,1132615,1132616,1132617,1132403]},"11308":{"name":"JR横須賀線","g":[1130101,1130102,1130103,1130804,1130307,1130805,1130105,1130807,1130808,1130106,1130107,1130811,1130812,1130813,1130814,1130815,1130816,1130817,1130818]},"11320":{"name":"JR常磐線(上野～取手)","g":[1130220,1130218,1132003,1132004,1132005,1132006,1132007,1132008,1132009,1132010,1132011,1130519,1132013,1132014,1132015,1132016,1132017,1132018,1122901]},"11327":{"name":"JR成田線","g":[1131415,1132702,1132703,1132813,1132705,1132706,1132707,1132708,1132709,1132710,1132711,1132712,1132713,1132714,1132715,1132716,1132717,1131430,1131431,1132017,1132721,1132722,1132723,1132724,1132725,1132726,1132727,1132728]},"28001":{"name":"東京メトロ銀座線","g":[2100201,2800102,2800103,1130220,1130221,2800106,1130223,1131402,2800109,2800110,2800111,1130102,2800113,2800114,2800115,2800116,2800117,2800118,1130205]},"28002":{"name":"東京メトロ丸ノ内線","g":[1130212,2800202,2800203,2800204,2800205,1131203,1131203,2800208,1130101,2800111,2800211,2800212,2800115,1131102,2800215,2800216,2800217,1130208,2800219,2800220,2800221,2800222,2800223,2800224,1131217,2800226,2800227,2800228]},"28003":{"name":"東京メトロ日比谷線","g":[1132005,1132004,2800303,2800304,1130220,1130221,1130222,2800308,2800309,2800310,1132602,2800312,2800313,2800111,1130225,2800211,2800113,2800317,2800318,2800319,1130204,2600103]},"28004":{"name":"東京メトロ東西線","g":[1131214,2800402,1130210,2800404,2800405,1131316,2800407,2800408,2800208,2800109,2800310,2800412,2800413,2800414,2800415,2800416,2800417,2800418,2800419,2800420,2800421,2800422,1130524]},"28005":{"name":"東京メトロ千代田線","g":[2800501,1132006,1132005,2300104,1130217,2800506,2800507,2800508,1131203,2800208,2800511,1130225,2800211,2800212,2800515,2800516,2800118,1130206,2500104,2500105]},"28006":{"name":"東京メトロ有楽町線","g":[2100111,2100110,2100109,2800604,2800605,2200301,2800607,2800608,1130212,2800610,2800611,2800612,1131316,1131315,2800615,2800115,2800617,1130225,2800111,2800312,2800621,2800622,2800623,1132605]},"28008":{"name":"東京メトロ半蔵門線","g":[1130205,2800118,2800116,2800115,2800805,2800407,2800807,2800208,1131402,2800309,2800811,2800814,1131322,2100203]},"28009":{"name":"東京メトロ南北線","g":[2800901,2800902,2800903,1133212,2800905,1130215,2800907,2800908,2800204,1131316,1131315,1131102,2800115,2800114,2800915,2800916,2800917,2800918,1130203]},"28010":{"name":"東京メトロ副都心線","g":[2100111,2100110,2100109,2800604,2800605,2200301,2800607,2800608,1130212,2801010,2801011,2801012,2800217,2801014,1130206,1130205]},"99301":{"name":"都営大江戸線","g":[9930101,9930102,2801012,9930104,9930105,9930106,1131316,2800229,2800205,1130221,9930111,9930112,1131321,9930114,2800811,2800412,2800621,9930118,9930119,9930120,9930121,9930122,2800916,2800318,2800116,9930126,1130207,1130208,9930129,2800220,1131308,2200704,9930133,9930134,2200106,2200402,9930137,9930138]},"99302":{"name":"都営浅草線","g":[9930201,9930202,2600404,2600503,1130202,9930206,2700101,9930208,9930121,1130102,2800313,2800110,2800109,2800309,1131403,1131320,9930112,2100201,9930219,2100203]},"99303":{"name":"都営三田線","g":[1130203,2800918,2800917,9930208,9930305,9930306,9930307,1130225,2800208,2800807,1131317,2800229,9930313,9930314,1130214,9930316,9930317,9930318,9930319,9930320,9930321,9930322,9930323,9930324,9930325,9930326,9930327]},"99304":{"name":"都営新宿線","g":[1130208,2800217,9930403,1131315,2800407,2800807,1131203,9930408,1131403,9930410,9930114,9930412,2800814,9930414,9930415,9930416,9930417,9930418,9930419,9930420,1131328]},"26001":{"name":"東急東横線","g":[1130205,2600102,2600103,2600104,2600105,2600106,2600107,2600108,2600109,2600110,1130307,2600112,2600113,2600114,2600115,1130603,2600117,2600118,2600119,2600120,1130105]},"26003":{"name":"東急田園都市線","g":[1130205,2600302,2600303,2600304,2600305,2600306,2600307,2600308,2600309,1130310,2600311,2600312,2600313,2600314,2600315,2600316,2600317,2600318,2600319,2600320,2600321,1130609,2600323,2600324,2600325,2600326,2500203]},"26002":{"name":"東急目黒線","g":[1130203,2600202,2600203,2600204,2600205,2600206,2600207,2600108,2600109,2600110,1130307,2600112,2600113]},"26004":{"name":"東急大井町線","g":[1133228,2600402,2600403,2600404,2600405,2600406,2600407,2600206,2600409,2600107,2600411,2600412,2600413,2600414,2600307,2600308,2600309,1130310]},"26005":{"name":"東急池上線","g":[1130202,2600502,2600503,2600504,2600406,2600506,2600507,2600508,2600509,2600510,2600511,2600512,2600513,2600514,1133230]},"26006":{"name":"東急多摩川線","g":[2600109,2600602,2600603,2600604,2600605,2600606,1133230]},"25001":{"name":"小田急線","g":[1130208,2500102,2500103,2500104,2500105,2500106,2400605,2500108,2500109,2500110,2500111,2500112,2500113,2500114,2500115,2500116,2500117,1130314,2500119,2500120,2500121,2500122,2500123,2500124,2500125,2500126,1130611,2500128,2500129,2500130,2500131,1130910,1130909,2500134,2500135,2500136,2500137,2500138,2500139,2500140,2500141,2500142,2500143,2500144,2500145,2500146,1130116]},"25002":{"name":"小田急江ノ島線","g":[2500128,2500202,2500203,2500204,2500205,2500206,2500207,2500208,2500209,2500210,2500211,2500212,2500213,1130108,2500215,2500216,2500217]},"24001":{"name":"京王線","g":[1130208,2400104,2400105,2400106,2400107,2400108,2400109,2400110,2400111,2400112,2400113,2400114,2400115,2400116,2400117,2400118,2400119,2400120,2400121,2400122,2400123,2400124,1130321,2400126,2400127,2400128,2400129,2400130,2400131,2400132,2400133,2400134]},"24006":{"name":"京王井の頭線","g":[1130205,2400602,2400603,2400604,2400605,2400606,2400607,2400106,2400609,2400610,2400611,2400612,2400613,2400614,2400615,2400616,1131104]},"22001":{"name":"西武池袋線","g":[1130212,2200102,2200103,2200104,2200105,2200106,2200107,2200108,2200109,2200110,2200111,2200112,2200113,2200114,2200115,2200116,2200131,2200117,2200118,2200119,2200120,2200121,2200122,2200123,2200124,2200125,1131708,2200127,2200128,2200129,2200130]},"22007":{"name":"西武新宿線","g":[2200701,1130210,2200703,2200704,2200705,2200706,2200707,2200708,2200709,2200710,2200711,2200712,2200713,2200714,2200715,2200716,2200717,2200718,2200719,2200720,2200721,2200131,2200723,2200724,2200725,2200726,2200727,2200728,2200729]},"22003":{"name":"西武有楽町線","g":[2200301,2200302,2200106]},"21001":{"name":"東武東上線","g":[1130212,2100102,2100103,2100104,2100105,2100106,2100107,2100108,2100109,2100110,2100111,2100112,1130508,2100114,2100115,2100116,2100117,2100118,2100119,2100120,1132123,2100122,2100123,2100124,2100125,2100126,2100127,2100128,2100129,2100130,2100131,2100132,1131805,2100134,2100139,2100135,2100136,2100137,1131808]},"21002":{"name":"東武伊勢崎線","g":[2100201,2100202,2100203,2100204,2100205,2100206,2100207,2100208,1132005,2100210,2100211,2100212,2100213,2100214,2100215,2100216,2100217,2100218,2100219,1130514,2100221,2100222,2100223,2100224,2100225,2100226,2100227,2100228,2100229,2100230,2100231,1131912,2100233,2100234,2100235,2100236,2100237,2100238,2100239,2100240,2100241,2100242,2100243,2100244,2100245,2100246,2100247,2100248,2100249,2100250]},"27001":{"name":"京急本線","g":[2700101,1130103,2700103,2700104,2700105,2700106,2700107,2700108,2700109,2700110,2700111,2700112,2700113,2700114,2700115,1130326,2700117,1130401,2700119,2700120,1133233,2700122,2700123,1130601,2700125,1130105,2700127,2700128,2700129,2700130,2700131,2700132,2700133,2700134,2700135,2700136,2700137,2700138,2700139,2700140,2700141,2700142,2700143,2700144,2700145,2700146,2700147,2700148,2700149,2700150]},"27002":{"name":"京急空港線","g":[2700112,2700202,2700203,2700204,2700205,2700207,2700206]},"29001":{"name":"相鉄本線","g":[1130105,2900102,2900103,2900104,2900105,2900106,2900107,2900108,2900109,2900110,2900111,2900112,2900113,2500206,2900115,2900116,2900117,1130910]},"29002":{"name":"相鉄いずみ野線","g":[2900110,2900202,2900203,2900204,2900205,2900206,2900207,2500210]},"29004":{"name":"相鉄新横浜線","g":[1130604,2900301,2900108]},"26009":{"name":"東急新横浜線","g":[1130604,2600114,2600113]},"99309":{"name":"つくばエクスプレス","g":[1130222,9930111,9930903,1132004,1132005,9930906,9930907,9930908,9930909,1130518,9930911,2100422,9930913,9930914,9930915,9930916,9930917,9930918,9930919,9930920]},"99311":{"name":"ゆりかもめ","g":[1130102,9930120,9931103,9931104,9931105,9931106,9931107,9931108,9931109,9931110,9931111,9931112,9931113,9931114,9931115,2800622]},"99337":{"name":"りんかい線","g":[1132605,9933702,9933703,9933704,9933602,9933706,1133228,1130201]},"99310":{"name":"みなとみらい線","g":[1130105,9931002,9931003,9931004,9931005,9931006]},"11314":{"name":"JR総武本線","g":[1130101,1131402,1131403,1131322,1131325,1131327,1131331,1131333,1131337,1131339,1131411,1131412,1131413,1131414,1131415,1131416,1131417,1131418,1131419,1131420,1131421,1131422,1131423,1131424,1131425,1131426,1131427,1131428,1131429,1131430,1131431]},"99336":{"name":"東京モノレール","g":[1130227,9933602,9933603,9933604,9933605,9933606,2700205,2700207,9933608,2700206,2700206]},"11301":{"name":"JR東海道本線(東京～熱海)","g":[1130101,1130102,1130103,1130104,1130105,1130106,1130107,1130108,1130109,1130110,1130111,1130112,1130113,1130114,1130115,1130116,1130117,1130118,1130119,1130120,1130121]}}};
+
+var ST = DATA.stations, LN = DATA.lines;
+var stationIds = Object.keys(ST);
+var stationLines = {};
+var adj = {};
+function havKm(a, b){
+  var p1 = ST[a], p2 = ST[b];
+  var la1 = p1.lat * Math.PI/180, la2 = p2.lat * Math.PI/180;
+  var dla = la2 - la1, dlo = (p2.lon - p1.lon) * Math.PI/180;
+  var h = Math.sin(dla/2)*Math.sin(dla/2) + Math.cos(la1)*Math.cos(la2)*Math.sin(dlo/2)*Math.sin(dlo/2);
+  return 6371 * 2 * Math.asin(Math.sqrt(h));
+}
+Object.keys(LN).forEach(function(lid){
+  var g = LN[lid].g.map(String);
+  g.forEach(function(sid){
+    var arr = stationLines[sid] || (stationLines[sid] = []);
+    if (arr.indexOf(lid) === -1) arr.push(lid);
+  });
+  for (var i = 0; i + 1 < g.length; i++){
+    var a = g[i], b = g[i+1];
+    if (a === b) continue;
+    var cost = 1.5 + 0.7 * havKm(a, b);
+    var ka = a + "|" + lid, kb = b + "|" + lid;
+    (adj[ka] = adj[ka] || []).push({to: kb, min: cost, toSid: b});
+    (adj[kb] = adj[kb] || []).push({to: ka, min: cost, toSid: a});
+  }
+});
+function lineNamesOf(sid){
+  return (stationLines[sid] || []).map(function(lid){ return LN[lid].name; });
+}
+
+function dijkstra(src){
+  var dist = {}, prev = {}, done = {};
+  var heap = [];
+  function push(c, k){ heap.push([c, k]); var i = heap.length - 1;
+    while (i > 0){ var p = (i - 1) >> 1; if (heap[p][0] <= heap[i][0]) break;
+      var t = heap[p]; heap[p] = heap[i]; heap[i] = t; i = p; } }
+  function pop(){ var top = heap[0], last = heap.pop();
+    if (heap.length){ heap[0] = last; var i = 0;
+      for (;;){ var l = 2*i + 1, r = l + 1, m = i;
+        if (l < heap.length && heap[l][0] < heap[m][0]) m = l;
+        if (r < heap.length && heap[r][0] < heap[m][0]) m = r;
+        if (m === i) break; var t = heap[m]; heap[m] = heap[i]; heap[i] = t; i = m; } }
+    return top; }
+  (stationLines[src] || []).forEach(function(lid){
+    var k = src + "|" + lid; dist[k] = 0; push(0, k);
+  });
+  while (heap.length){
+    var cur = pop(), c = cur[0], key = cur[1];
+    if (done[key]) continue; done[key] = true;
+    if (c > (dist[key] === undefined ? Infinity : dist[key])) continue;
+    var parts = key.split("|"), sid = parts[0], lid = parts[1];
+    var edges = adj[key] || [];
+    for (var i = 0; i < edges.length; i++){
+      var e = edges[i], nc = c + e.min;
+      if (dist[e.to] === undefined || nc < dist[e.to] - 1e-9){
+        dist[e.to] = nc;
+        prev[e.to] = {from: key, kind: "ride", min: e.min, fromSid: sid, toSid: e.toSid, line: lid};
+        push(nc, e.to);
+      }
+    }
+    var lines = stationLines[sid] || [];
+    for (var j = 0; j < lines.length; j++){
+      if (lines[j] === lid) continue;
+      var tk = sid + "|" + lines[j], tc = c + 5;
+      if (dist[tk] === undefined || tc < dist[tk] - 1e-9){
+        dist[tk] = tc;
+        prev[tk] = {from: key, kind: "transfer", min: 5, sid: sid, fromLine: lid, toLine: lines[j]};
+        push(tc, tk);
+      }
+    }
+  }
+  return {dist: dist, prev: prev};
+}
+function bestAt(res, sid){
+  var best = Infinity, bestKey = null;
+  (stationLines[sid] || []).forEach(function(lid){
+    var k = sid + "|" + lid;
+    if (res.dist[k] !== undefined && res.dist[k] < best){ best = res.dist[k]; bestKey = k; }
+  });
+  return {min: best, key: bestKey};
+}
+function route(res, targetSid){
+  var b = bestAt(res, targetSid);
+  if (!b.key) return null;
+  var steps = [], k = b.key;
+  while (res.prev[k]){
+    var p = res.prev[k]; steps.push(p); k = p.from;
+  }
+  steps.reverse();
+  var segments = [], transfers = 0, stops = 0, cur = null;
+  steps.forEach(function(p){
+    if (p.kind === "transfer"){
+      transfers++;
+      if (cur){ segments.push(cur); cur = null; }
+      segments.push({transfer: true, at: p.sid, fromLine: p.fromLine, toLine: p.toLine});
+    } else {
+      stops++;
+      if (cur && cur.line === p.line){ cur.to = p.toSid; cur.stops++; cur.min += p.min; }
+      else { if (cur) segments.push(cur); cur = {line: p.line, from: p.fromSid, to: p.toSid, stops: 1, min: p.min}; }
+    }
+  });
+  if (cur) segments.push(cur);
+  return {min: b.min, segments: segments, transfers: transfers, stops: stops};
+}
+
+var sel = {A: null, B: null};
+var sortMode = "diff";
+var lastResult = null;
+var targetRatioA = 50;
+var leafletMap = null, leafletLayer = null, markersBySid = {}, activeSid = null;
+
+function setupField(which){
+  var input = document.getElementById("input" + which);
+  var box = document.getElementById("suggest" + which);
+  input.addEventListener("input", function(){
+    sel[which] = null;
+    input.classList.remove("invalid");
+    var q = input.value.trim();
+    if (!q){ box.classList.remove("open"); box.innerHTML = ""; return; }
+    var hits = stationIds.filter(function(sid){ return ST[sid].n.indexOf(q) !== -1; });
+    hits.sort(function(x, y){ return ST[x].n.indexOf(q) - ST[y].n.indexOf(q) || ST[x].n.length - ST[y].n.length; });
+    hits = hits.slice(0, 12);
+    if (!hits.length){ box.classList.remove("open"); box.innerHTML = ""; return; }
+    box.innerHTML = "";
+    hits.forEach(function(sid){
+      var btn = document.createElement("button");
+      btn.type = "button"; btn.setAttribute("role", "option");
+      var nm = document.createElement("span"); nm.className = "s-name"; nm.textContent = ST[sid].n;
+      var ls = document.createElement("span"); ls.className = "s-lines"; ls.textContent = lineNamesOf(sid).join(" / ");
+      btn.appendChild(nm); btn.appendChild(ls);
+      var picked = false;
+      function pick(){
+        if (picked) return; picked = true;
+        sel[which] = sid; input.value = ST[sid].n;
+        input.classList.remove("invalid");
+        box.classList.remove("open"); box.innerHTML = "";
+      }
+      /* PC (mouse) fix: select on mousedown, not only on click.
+         A mouse press first blurs the input, and the blur handler hides
+         this list (display:none) after 180ms. If the press lasts longer
+         than that — a normal mouse/trackpad click often does — the button
+         disappears before mouseup, so the browser never fires "click"
+         and the station name is never entered. mousedown fires before
+         the blur timer, and preventDefault() stops the input from losing
+         focus at all, so the list cannot vanish mid-press. The click
+         handler stays as a fallback for keyboard / assistive activation
+         (Enter/Space fires click without mousedown); pick() is guarded
+         so a mousedown+click pair only selects once. */
+      btn.addEventListener("mousedown", function(ev){
+        ev.preventDefault();
+        pick();
+      });
+      btn.addEventListener("click", pick);
+      box.appendChild(btn);
+    });
+    box.classList.add("open");
+  });
+  /* Pressing a candidate must not blur the input before the press
+     completes (see the mousedown note above). Clicks on the list's own
+     scrollbar still target the box itself, so those keep their default
+     behaviour and the list stays scrollable with a mouse. */
+  box.addEventListener("mousedown", function(ev){
+    if (ev.target !== box) ev.preventDefault();
+  });
+  input.addEventListener("blur", function(ev){
+    /* If focus moved into the suggestion list, keep it open. */
+    if (ev.relatedTarget && box.contains(ev.relatedTarget)) return;
+    setTimeout(function(){
+      if (box.contains(document.activeElement)) return;
+      box.classList.remove("open");
+    }, 180);
+  });
+  input.addEventListener("focus", function(){
+    if (box.children.length) box.classList.add("open");
+  });
+}
+setupField("A"); setupField("B");
+
+function resolveField(which){
+  if (sel[which]) return sel[which];
+  var input = document.getElementById("input" + which);
+  var q = input.value.trim();
+  if (!q) return null;
+  var exact = stationIds.filter(function(sid){ return ST[sid].n === q; });
+  if (exact.length === 1){ sel[which] = exact[0]; return exact[0]; }
+  return null;
+}
+
+var RATIO_TOLERANCE = 10;
+var DISPLAY_COUNT = 8;
+function setSortMode(mode){
+  /* Only "diff" / "total" exist now. The ratio is no longer a sort mode:
+     it is an always-on filter applied before sorting (Plan A). */
+  sortMode = (mode === "total") ? "total" : "diff";
+  var btns = document.getElementById("sortSeg").querySelectorAll("button");
+  for (var i = 0; i < btns.length; i++) btns[i].setAttribute("aria-pressed", btns[i].getAttribute("data-sort") === sortMode ? "true" : "false");
+  updateRatioSortState();
+}
+function sortModeLabel(){
+  return sortMode === "total" ? "合計が短い順" : "時間差が小さい順";
+}
+function updateRatioSortState(){
+  var el = document.getElementById("ratioSortState");
+  if (!el) return;
+  var lo = Math.max(0, targetRatioA - RATIO_TOLERANCE), hi = Math.min(100, targetRatioA + RATIO_TOLERANCE);
+  el.textContent = "絞り込み：希望の比率 " + targetRatioA + " : " + (100 - targetRatioA) + " の ±" + RATIO_TOLERANCE + "ポイント以内（A側 " + lo + "〜" + hi + "%）を優先します。並び順は「" + sortModeLabel() + "」です。比率を変えても並び順は解除されません。";
+}
+function actualPctA(c){ return c.total > 0 ? (c.ta / c.total * 100) : 50; }
+function ratioGap(c){ return Math.abs(actualPctA(c) - targetRatioA); }
+function isWithinRatio(c){ return ratioGap(c) <= RATIO_TOLERANCE + 1e-9; }
+function sortComparator(){
+  if (sortMode === "total") return function(x, y){ return (x.total - y.total) || (x.diff - y.diff); };
+  return function(x, y){ return (x.diff - y.diff) || (x.total - y.total); };
+}
+/* Plan A — two stages, exactly in this order:
+   1) Filter: keep only stations whose actual ratio is within
+      ±RATIO_TOLERANCE points of the desired ratio.
+   2) Sort: order that filtered set by the button key (diff / total)
+      and take the top DISPLAY_COUNT.
+   If the filtered set has fewer than DISPLAY_COUNT stations, fill the
+   remainder from outside the range, nearest ratio first, and flag the
+   fill so the UI can disclose the expansion. Fills are appended after
+   the in-range block (they never jump ahead of an in-range station). */
+function selectDisplay(cands){
+  var cmp = sortComparator();
+  var within = [], outside = [];
+  cands.forEach(function(c){
+    if (isWithinRatio(c)) within.push(c); else outside.push(c);
+  });
+  within.sort(cmp);
+  var display = within.slice(0, DISPLAY_COUNT).map(function(c){
+    var copy = {}; for (var k in c) copy[k] = c[k]; copy._within = true; copy._fill = false; return copy;
+  });
+  var filled = 0;
+  if (display.length < DISPLAY_COUNT){
+    outside.sort(function(x, y){ return (ratioGap(x) - ratioGap(y)) || cmp(x, y); });
+    var need = DISPLAY_COUNT - display.length;
+    outside.slice(0, need).forEach(function(c){
+      var copy = {}; for (var k in c) copy[k] = c[k]; copy._within = false; copy._fill = true; display.push(copy); filled++;
+    });
+  }
+  return { display: display, withinCount: within.length, filledCount: filled, expanded: filled > 0, totalCount: cands.length };
+}
+function sortedCands(cands){ return selectDisplay(cands).display; }
+function updateRatioUI(){
+  var a = targetRatioA, b = 100 - a;
+  document.getElementById("ratioRange").value = a;
+  document.getElementById("ratioValA").textContent = a;
+  document.getElementById("ratioValB").textContent = b;
+  document.getElementById("ratioBarA").style.width = a + "%";
+  document.getElementById("ratioBarB").style.width = b + "%";
+  var nA = lastResult ? ST[lastResult.A].n : (document.getElementById("inputA").value.trim() || "A");
+  var nB = lastResult ? ST[lastResult.B].n : (document.getElementById("inputB").value.trim() || "B");
+  document.getElementById("ratioNameA").textContent = nA;
+  document.getElementById("ratioNameB").textContent = nB;
+  document.getElementById("ratioCapA").textContent = nA + "側 " + a + "%";
+  document.getElementById("ratioCapB").textContent = nB + "側 " + b + "%";
+  document.getElementById("ratioMinus").disabled = a <= 5;
+  document.getElementById("ratioPlus").disabled = a >= 95;
+  updateRatioSortState();
+}
+document.getElementById("ratioRange").addEventListener("input", function(){
+  targetRatioA = parseInt(this.value, 10);
+  /* Changing the ratio only changes the filter band; the sort key
+     chosen with the buttons (diff / total) stays in effect. */
+  updateRatioUI();
+  if (lastResult) renderResults(lastResult.A, lastResult.B);
+});
+document.getElementById("ratioReset").addEventListener("click", function(){
+  targetRatioA = 50;
+  updateRatioUI();
+  if (lastResult) renderResults(lastResult.A, lastResult.B);
+});
+function stepRatio(d){
+  targetRatioA += d;
+  if (targetRatioA < 5) targetRatioA = 5;
+  if (targetRatioA > 95) targetRatioA = 95;
+  updateRatioUI();
+  if (lastResult) renderResults(lastResult.A, lastResult.B);
+}
+document.getElementById("ratioMinus").addEventListener("click", function(){ stepRatio(-5); });
+document.getElementById("ratioPlus").addEventListener("click", function(){ stepRatio(5); });
+
+document.getElementById("swapBtn").addEventListener("click", function(){
+  var ia = document.getElementById("inputA"), ib = document.getElementById("inputB");
+  var tv = ia.value; ia.value = ib.value; ib.value = tv;
+  var ts = sel.A; sel.A = sel.B; sel.B = ts;
+  targetRatioA = 100 - targetRatioA;
+  if (targetRatioA < 5) targetRatioA = 5; if (targetRatioA > 95) targetRatioA = 95;
+  updateRatioUI();
+  if (lastResult){
+    /* A/B are swapped in the inputs; re-run so routes and labels stay correct. */
+    lastResult = null; activeSid = null;
+    var na = resolveField("A"), nb = resolveField("B");
+    if (na && nb && na !== nb){ search(); }
+  }
+});
+
+document.getElementById("sortSeg").addEventListener("click", function(ev){
+  var btn = ev.target.closest("button"); if (!btn) return;
+  setSortMode(btn.getAttribute("data-sort"));
+  if (lastResult) renderResults(lastResult.A, lastResult.B);
+});
+
+var exBtns = document.querySelectorAll("[data-ex]");
+for (var ei = 0; ei < exBtns.length; ei++){
+  exBtns[ei].addEventListener("click", function(){
+    var pair = this.getAttribute("data-ex").split("|");
+    ["A", "B"].forEach(function(w, i){
+      var sid = stationIds.filter(function(x){ return ST[x].n === pair[i]; })[0];
+      sel[w] = sid;
+      document.getElementById("input" + w).value = pair[i];
+    });
+    search();
+  });
+}
+
+function showError(msg){
+  var box = document.getElementById("errorBox");
+  if (!msg){ box.classList.remove("show"); box.textContent = ""; return; }
+  box.textContent = msg; box.classList.add("show");
+}
+
+document.getElementById("goBtn").addEventListener("click", search);
+
+function search(){
+  showError("");
+  var A = resolveField("A"), B = resolveField("B");
+  if (!A || !B){
+    if (!A) document.getElementById("inputA").classList.add("invalid");
+    if (!B) document.getElementById("inputB").classList.add("invalid");
+    showError("駅名を入力し、候補リストから駅を選んでください（対象は首都圏54路線の駅です）。同名の駅がある場合はリストで路線を確認してください。");
+    return;
+  }
+  if (A === B){ showError("AとBに同じ駅が選ばれています。違う駅を選んでください。"); return; }
+  var resA = dijkstra(A), resB = dijkstra(B);
+  var cands = [];
+  stationIds.forEach(function(sid){
+    if (sid === A || sid === B) return;
+    var ta = bestAt(resA, sid).min, tb = bestAt(resB, sid).min;
+    if (!isFinite(ta) || !isFinite(tb)) return;
+    cands.push({sid: sid, ta: ta, tb: tb, diff: Math.abs(ta - tb), total: ta + tb});
+  });
+  if (!cands.length){ showError("この2駅をつなぐ候補が見つかりませんでした。"); return; }
+  lastResult = {A: A, B: B, resA: resA, resB: resB, cands: cands};
+  activeSid = null;
+  updateRatioUI();
+  renderResults(A, B);
+  document.getElementById("results").scrollIntoView({behavior: "smooth", block: "start"});
+}
+
+function fmt(x){ return Math.round(x); }
+function esc(s){ return s; }
+
+function routeLegHTML(title, fromName, r, toName){
+  var h = '<div class="route-leg"><h4>' + title + "：" + fromName + " → " + toName + "</h4>";
+  r.segments.forEach(function(s){
+    if (s.transfer){
+      h += '<div class="transfer-note">↪ ' + ST[s.at].n + "で乗り換え（" + LN[s.fromLine].name + " → " + LN[s.toLine].name + "、+5分）</div>";
+    } else {
+      h += '<div class="seg-row"><span class="seg-line">' + LN[s.line].name + '</span>' +
+           '<span class="seg-desc">' + ST[s.from].n + " → " + ST[s.to].n +
+           ' <span class="mins">' + s.stops + "駅 ・ 約" + fmt(s.min) + "分</span></span></div>";
+    }
+  });
+  h += '<div class="route-total">合計 約' + fmt(r.min) + "分 ・ " + r.stops + "駅 ・ 乗り換え" + r.transfers + "回</div></div>";
+  return h;
+}
+
+/* ---------- map (Leaflet + OpenStreetMap) ---------- */
+function pinIconFor(kind, label, active){
+  if (typeof L === "undefined") return null;
+  if (kind === "mid") return L.divIcon({className: "pin-icon", html: '<div class="pin-mid"></div>', iconSize: [22, 22], iconAnchor: [11, 11], popupAnchor: [0, -10]});
+  var cls = kind === "A" ? "pin-a" : kind === "B" ? "pin-b" : "pin-c";
+  if (active) cls += " is-active";
+  return L.divIcon({className: "pin-icon", html: '<div class="pin ' + cls + '"><span>' + label + '</span></div>', iconSize: [30, 30], iconAnchor: [15, 28], popupAnchor: [0, -26]});
+}
+function popupHTML(c, rank, rA, rB, nameA, nameB){
+  var pa = Math.round(actualPctA(c)), pb = 100 - pa;
+  return '<div class="pop-title">' + rank + '位 ' + ST[c.sid].n + '駅</div>' +
+    '<div>' + lineNamesOf(c.sid).join(" / ") + '</div>' +
+    '<div class="pop-row"><span>' + nameA + 'から</span><b>約' + fmt(c.ta) + '分・乗換' + rA.transfers + '回</b></div>' +
+    '<div class="pop-row"><span>' + nameB + 'から</span><b>約' + fmt(c.tb) + '分・乗換' + rB.transfers + '回</b></div>' +
+    '<div class="pop-row"><span>時間差 / 合計</span><b>' + fmt(c.diff) + '分 / 約' + fmt(c.total) + '分</b></div>' +
+    '<div class="pop-row"><span>実際の比率</span><b>' + nameA + ' ' + pa + ' : ' + pb + ' ' + nameB + '</b></div>' +
+    '<div class="pop-row"><span>希望比率</span><b>' + targetRatioA + ' : ' + (100 - targetRatioA) + '</b></div>' +
+    (c._fill ? '<div>※ ±' + RATIO_TOLERANCE + 'ポイントの範囲外のため、比率が近い順で補った候補です。</div>' : '');
+}
+function setActiveCandidate(sid, opts){
+  opts = opts || {};
+  activeSid = sid;
+  var cards = document.querySelectorAll(".cand[data-sid]");
+  for (var i = 0; i < cards.length; i++) cards[i].classList.toggle("is-active", cards[i].getAttribute("data-sid") === String(sid));
+  Object.keys(markersBySid).forEach(function(k){
+    var m = markersBySid[k];
+    if (m._kind === "cand") m.setIcon(pinIconFor("cand", m._label, String(k) === String(sid)));
+  });
+  var marker = markersBySid[sid];
+  if (marker && leafletMap){
+    if (opts.pan) leafletMap.panTo(marker.getLatLng());
+    if (opts.openPopup) marker.openPopup();
+  }
+  if (opts.scroll){
+    var card = document.querySelector('.cand[data-sid="' + sid + '"]');
+    if (card) card.scrollIntoView({behavior: "smooth", block: "center"});
+  }
+}
+function updateMap(A, B, items){
+  var mapEl = document.getElementById("map");
+  if (typeof L === "undefined"){ mapEl.innerHTML = '<p style="padding:16px;color:var(--muted);font-size:14px">地図を読み込めませんでした。一覧から候補を確認してください。</p>'; return; }
+  if (!leafletMap){
+    leafletMap = L.map("map", {scrollWheelZoom: false});
+    leafletMap.on("focus", function(){ leafletMap.scrollWheelZoom.enable(); });
+    leafletMap.on("blur", function(){ leafletMap.scrollWheelZoom.disable(); });
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors'}).addTo(leafletMap);
+    leafletLayer = L.layerGroup().addTo(leafletMap);
+  }
+  leafletLayer.clearLayers(); markersBySid = {};
+  var a = ST[A], b = ST[B];
+  var midLat = (a.lat + b.lat) / 2, midLon = (a.lon + b.lon) / 2;
+  var bounds = [[a.lat, a.lon], [b.lat, b.lon], [midLat, midLon]];
+  L.polyline([[a.lat, a.lon], [b.lat, b.lon]], {color: "#888888", weight: 2, dashArray: "6 6", opacity: 0.8}).addTo(leafletLayer);
+  var mA = L.marker([a.lat, a.lon], {icon: pinIconFor("A", "A", false), zIndexOffset: 1000}).addTo(leafletLayer);
+  mA._kind = "A"; mA.bindPopup('<div class="pop-title">勤務地A ' + a.n + '駅</div><div>出発駅です。</div>');
+  var mB = L.marker([b.lat, b.lon], {icon: pinIconFor("B", "B", false), zIndexOffset: 1000}).addTo(leafletLayer);
+  mB._kind = "B"; mB.bindPopup('<div class="pop-title">勤務地B ' + b.n + '駅</div><div>出発駅です。</div>');
+  var mMid = L.marker([midLat, midLon], {icon: pinIconFor("mid", "", false), zIndexOffset: 900}).addTo(leafletLayer);
+  mMid.bindPopup('<div class="pop-title">地理的な中点</div><div>' + a.n + '駅と' + b.n + '駅の緯度・経度の中点です。所要時間の中間とは限りません。</div>');
+  items.forEach(function(it){
+    var s = ST[it.c.sid]; bounds.push([s.lat, s.lon]);
+    var mk = L.marker([s.lat, s.lon], {icon: pinIconFor("cand", String(it.rank), String(it.c.sid) === String(activeSid))}).addTo(leafletLayer);
+    mk._kind = "cand"; mk._label = String(it.rank);
+    mk.bindPopup(popupHTML(it.c, it.rank, it.rA, it.rB, a.n, b.n));
+    mk.on("click", function(){ setActiveCandidate(it.c.sid, {scroll: true}); });
+    markersBySid[it.c.sid] = mk;
+  });
+  document.getElementById("results").hidden = false;
+  var pairKey = A + "|" + B;
+  var shouldFit = updateMap._pair !== pairKey;
+  updateMap._pair = pairKey;
+  setTimeout(function(){
+    if (!leafletMap) return;
+    leafletMap.invalidateSize();
+    if (shouldFit) leafletMap.fitBounds(L.latLngBounds(bounds), {padding: [28, 28]});
+  }, 60);
+}
+
+/* ---- smartphone layout: dock the ratio controls above the map ----
+   On narrow screens, once results exist, the ratio box moves into the
+   results area (directly above the map) and sticks to the top while the
+   candidate list scrolls. On wide screens it stays in the search card. */
+var ratioDockMQ = window.matchMedia ? window.matchMedia("(max-width: 640px)") : {matches: false};
+function placeRatioBox(){
+  var box = document.getElementById("ratioBox");
+  if (!box) return;
+  if (ratioDockMQ.matches && lastResult){
+    var results = document.getElementById("results");
+    if (box.parentNode !== results) results.insertBefore(box, document.getElementById("mapCard"));
+    box.classList.add("docked");
+  } else {
+    var goBtn = document.getElementById("goBtn");
+    if (box.nextSibling !== goBtn) goBtn.parentNode.insertBefore(box, goBtn);
+    box.classList.remove("docked");
+  }
+  if (leafletMap) setTimeout(function(){ if (leafletMap) leafletMap.invalidateSize(); }, 90);
+}
+if (ratioDockMQ.addEventListener) ratioDockMQ.addEventListener("change", placeRatioBox);
+else if (ratioDockMQ.addListener) ratioDockMQ.addListener(placeRatioBox);
+
+function renderResults(A, B){
+  placeRatioBox();
+  var resA = lastResult.resA, resB = lastResult.resB;
+  var nameA = ST[A].n, nameB = ST[B].n;
+  document.getElementById("resultTitle").textContent = nameA + " × " + nameB + " の中間候補";
+  var sortLabel = sortMode === "total" ? "合計所要時間が短い順" : "両側の時間差が小さい順";
+  var lo = Math.max(0, targetRatioA - RATIO_TOLERANCE), hi = Math.min(100, targetRatioA + RATIO_TOLERANCE);
+  var selection = selectDisplay(lastResult.cands);
+  var display = selection.display;
+  document.getElementById("resultSub").textContent =
+    "希望比率 " + targetRatioA + " : " + (100 - targetRatioA) + " の ±" + RATIO_TOLERANCE + "ポイント以内（" + nameA + "側 " + lo + "〜" + hi + "%）で絞り込み → " + sortLabel + " ・ " +
+    "範囲内 " + selection.withinCount + "駅中 上位" + display.length + "駅を表示 ・ 所要時間はすべて推定";
+  var notice = document.getElementById("filterNotice");
+  if (selection.expanded){
+    notice.hidden = false;
+    notice.textContent = selection.withinCount === 0
+      ? "希望比率の ±" + RATIO_TOLERANCE + "ポイント以内に候補がなかったため、範囲を広げて比率が近い順に " + selection.filledCount + "駅を補って表示しています（各カードに「範囲外・補充」と付けています）。"
+      : "希望比率の ±" + RATIO_TOLERANCE + "ポイント以内は " + selection.withinCount + "駅だけだったため、8駅になるよう範囲外から比率が近い順に " + selection.filledCount + "駅を補って表示しています（補った駅には「範囲外・補充」と付けています）。";
+  } else {
+    notice.hidden = true; notice.textContent = "";
+  }
+  updateRatioUI();
+  var mapItems = [];
+  var list = document.getElementById("candList");
+  list.innerHTML = "";
+  display.forEach(function(c, idx){
+    var rA = route(resA, c.sid), rB = route(resB, c.sid);
+    mapItems.push({c: c, rank: idx + 1, rA: rA, rB: rB});
+    var card = document.createElement("div"); card.className = "cand" + (String(c.sid) === String(activeSid) ? " is-active" : "");
+    card.setAttribute("data-sid", c.sid); card.setAttribute("tabindex", "0");
+    card.setAttribute("aria-label", ST[c.sid].n + "駅を地図で強調");
+    var pa = c.total > 0 ? (c.ta / c.total * 100) : 50;
+    var paR = Math.round(pa), pbR = 100 - paR;
+    var ratioDelta = Math.abs(pa - targetRatioA);
+    var linesHtml = lineNamesOf(c.sid).map(function(n){ return "<span>" + n + "</span>"; }).join("");
+    var mapsUrl = "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(ST[c.sid].n + "駅");
+    card.innerHTML =
+      '<div class="cand-top"><span class="rank">' + (idx + 1) + '位</span>' +
+      '<span class="cand-name">' + ST[c.sid].n + ' <small>駅</small></span>' +
+      (c._fill ? '<span class="fill-tag">範囲外・補充</span>' : '') +
+      '<a class="map-link" href="' + mapsUrl + '" target="_blank" rel="noopener">地図で見る ↗</a></div>' +
+      '<div class="lines">' + linesHtml + '</div>' +
+      '<div class="times">' +
+        '<div class="t"><div class="who"><span class="dot dot-a" style="display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px"></span>' + nameA + 'から</div>' +
+          '<div class="min">約' + fmt(c.ta) + '<small>分</small></div><div class="sub">乗り換え' + rA.transfers + '回</div></div>' +
+        '<div class="t"><div class="who"><span class="dot dot-b" style="display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px"></span>' + nameB + 'から</div>' +
+          '<div class="min">約' + fmt(c.tb) + '<small>分</small></div><div class="sub">乗り換え' + rB.transfers + '回</div></div>' +
+        '<div class="t diff"><div class="who">時間差</div><div class="min">' + fmt(c.diff) + '<small>分</small></div><div class="sub">合計 約' + fmt(c.total) + '分</div></div>' +
+      '</div>' +
+      '<div class="bar"><div class="ba" style="width:' + pa.toFixed(1) + '%"></div><div class="bb" style="width:' + (100 - pa).toFixed(1) + '%"></div></div>' +
+      '<div class="bar-cap"><span>' + nameA + ' 約' + fmt(c.ta) + '分</span><span>' + nameB + ' 約' + fmt(c.tb) + '分</span></div>' +
+      '<div class="ratio-actual"><span class="chip">実際の比率&nbsp;<b>' + nameA + ' ' + paR + ' : ' + pbR + ' ' + nameB + '</b></span>' +
+      '<span class="delta">希望 ' + targetRatioA + ':' + (100 - targetRatioA) + ' との差 ' + ratioDelta.toFixed(0) + 'ポイント' +
+      (c._fill ? ' ・ ±' + RATIO_TOLERANCE + 'ポイントの範囲外（補充）' : ' ・ 範囲内') + '</span></div>';
+    var det = document.createElement("details"); det.className = "route";
+    var sum = document.createElement("summary"); sum.textContent = "ルートの内訳を見る";
+    det.appendChild(sum);
+    var body = document.createElement("div");
+    body.innerHTML = routeLegHTML("A側", nameA, rA, ST[c.sid].n) + routeLegHTML("B側", nameB, rB, ST[c.sid].n);
+    det.appendChild(body);
+    card.appendChild(det);
+    card.addEventListener("click", function(ev){
+      if (ev.target.closest("a")) return;
+      setActiveCandidate(c.sid, {pan: true, openPopup: true});
+    });
+    card.addEventListener("keydown", function(ev){
+      if (ev.key === "Enter" && ev.target === card){ setActiveCandidate(c.sid, {pan: true, openPopup: true}); }
+    });
+    list.appendChild(card);
+  });
+  document.getElementById("results").hidden = false;
+  updateMap(A, B, mapItems);
+  if (activeSid && !markersBySid[activeSid]) activeSid = null;
+}
+updateRatioUI();
+</script>
+<script data-goatcounter="https://mid-station.goatcounter.com/count"
+        async src="//gc.zgo.at/count.js"></script>
+</body>
+</html>
