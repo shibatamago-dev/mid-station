@@ -119,6 +119,9 @@
   .result-head{margin:30px 0 4px}
   .result-head h2{font-size:21px;font-weight:900;margin:0}
   .result-head p{color:var(--muted);font-size:14px;margin:4px 0 0}
+  .filter-notice{font-size:13px;font-weight:700;color:var(--warn-ink);background:var(--warn-bg);border:1px solid var(--warn-line);border-radius:10px;padding:10px 12px;margin:10px 0 0;line-height:1.55}
+  .filter-notice[hidden]{display:none}
+  .fill-tag{display:inline-block;font-size:11px;font-weight:900;color:var(--warn-ink);background:var(--warn-bg);border:1px solid var(--warn-line);border-radius:999px;padding:1px 8px;vertical-align:2px}
   .cand{
     background:var(--surface);border:1px solid var(--line);border-radius:14px;
     box-shadow:var(--shadow);padding:18px;margin:14px 0;
@@ -262,7 +265,7 @@
       <div class="suggest" id="suggestB" role="listbox"></div>
     </div>
 
-    <p class="seg-label">候補の並び順</p>
+    <p class="seg-label">候補の並び順（下の比率で絞り込んだ中での順番）</p>
     <div class="seg" id="sortSeg" role="group" aria-label="候補の並び順">
       <button type="button" data-sort="diff" aria-pressed="true">時間差が小さい順</button>
       <button type="button" data-sort="total" aria-pressed="false">合計が短い順</button>
@@ -281,8 +284,8 @@
       <div class="ratio-ends" aria-hidden="true"><span>5 : 95</span><span>95 : 5</span></div>
       <div class="ratio-bar" aria-hidden="true"><div class="ra" id="ratioBarA" style="width:50%"></div><div class="rb" id="ratioBarB" style="width:50%"></div></div>
       <div class="ratio-cap"><span id="ratioCapA">A側 50%</span><span>真ん中は 50 : 50</span><span id="ratioCapB">B側 50%</span></div>
-      <p class="ratio-state" id="ratioSortState" aria-live="polite">並び順：上のボタンで選んだ順です。スライダーを動かすと「希望の比率に近い順」に切り替わります。</p>
-      <p class="ratio-note">スライダーを動かすと、並び順が<strong>「希望の比率に近い順」</strong>に切り替わります。スコアは「希望との差（ポイント）＋ 合計時間（分）× 0.2」で、比率が合っても合計が極端に長い候補は上位に来ません。上の「時間差が小さい順」「合計が短い順」のボタンを押すと、比率での並び替えは解除されてその順になります。左に寄せるほどA側が短い比率、右に寄せるほどB側が短い比率が希望になります。両端の − ／ ＋ ボタンでも5ずつ変えられます（端まで確実に届きます）。 <button type="button" class="ratio-reset" id="ratioReset">50:50に戻す</button></p>
+      <p class="ratio-state" id="ratioSortState" aria-live="polite">絞り込み：希望の比率 50 : 50 の ±10ポイント以内を優先します。並び順は上のボタンで選んだ順です。</p>
+      <p class="ratio-note">比率は<strong>常時の絞り込み条件</strong>です。まず実際の比率が希望の <strong>±10ポイント以内</strong>の駅だけを残し、その中を上のボタン（時間差が小さい順／合計が短い順）で並べて上位8駅を表示します。スライダーを動かしても並び順のボタンは解除されません。範囲内が8駅に満たないときは、範囲外から比率が近い順に補って8駅にし、その旨と補った駅（「範囲外・補充」表示）を画面に出します。左に寄せるほどA側が短い比率、右に寄せるほどB側が短い比率が希望になります。両端の − ／ ＋ ボタンでも5ずつ変えられます。 <button type="button" class="ratio-reset" id="ratioReset">50:50に戻す</button></p>
     </div>
 
     <button type="button" class="go-btn" id="goBtn">中間駅を探す</button>
@@ -301,6 +304,7 @@
     <div class="result-head">
       <h2 id="resultTitle"></h2>
       <p id="resultSub"></p>
+      <p class="filter-notice" id="filterNotice" hidden></p>
     </div>
     <div class="map-card" id="mapCard">
       <h3>地図で見る</h3>
@@ -321,7 +325,7 @@
     <h2>このツールの仕組み</h2>
     <p>首都圏の54路線・872駅について「隣の駅」と「乗り換え」をつないだグラフを作り、2つの勤務地駅から全駅への最短ルートを計算しています。各候補駅について両側からの所要時間を求め、並び順の条件でランキングします。</p>
     <p>所要時間は<strong>推定</strong>です。駅間は <code>1.5分 ＋ 駅間距離(km) × 0.7分</code>、乗り換え1回 <code>5分</code> として計算しています。時刻表・特急料金・混雑は考慮していないので、実際の所要時間とはズレます。「だいたい釣り合う駅はどこか」の目安として使ってください。</p>
-    <p>並び順は「時間差が小さい順」（時間差が同じときは合計が短い順）か「合計が短い順」のどちらかです。希望比率のスライダーを動かすと「希望の比率に近い順」に切り替わり、スコア＝｜実際のA側の割合 − 希望の割合｜（ポイント）＋ 合計時間（分）× 0.2 で並べます。合計時間のペナルティがあるので、比率が合っても合計が極端に長い候補は上位に来ません。並び替えボタンを押すと比率での並び替えは解除されます。地図は Leaflet ＋ OpenStreetMap で、勤務地2駅・上位8候補・地理的な中点（緯度経度の平均）を表示します。</p>
+    <p>候補の選び方は2段階です。まず希望比率で絞り込みます：実際の比率（A側の割合＝Aからの時間 ÷ 合計時間 × 100）が希望の ±10ポイント以内にある駅だけを候補にします。次に、その候補の中をボタンで選んだ順（「時間差が小さい順」＝｜Aの時間 − Bの時間｜が小さい順、同点なら合計が短い順／「合計が短い順」＝A＋Bが小さい順）で並べ、上位8駅を表示します。比率は並び順と同時に効く条件で、スライダーを動かしてもボタンで選んだ並び順は変わりません。範囲内が8駅に満たないときは、範囲外の駅を比率が近い順（希望との差が小さい順）に足して8駅まで補い、補ったことが分かるよう結果の上に注記し、補った駅には「範囲外・補充」と付けます。地図は Leaflet ＋ OpenStreetMap で、勤務地2駅・上位8候補・地理的な中点（緯度経度の平均）を表示します。</p>
   </div>
 
   <div class="card notes">
@@ -500,35 +504,62 @@ function resolveField(which){
   return null;
 }
 
+var RATIO_TOLERANCE = 10;
+var DISPLAY_COUNT = 8;
 function setSortMode(mode){
-  sortMode = mode;
+  /* Only "diff" / "total" exist now. The ratio is no longer a sort mode:
+     it is an always-on filter applied before sorting (Plan A). */
+  sortMode = (mode === "total") ? "total" : "diff";
   var btns = document.getElementById("sortSeg").querySelectorAll("button");
-  for (var i = 0; i < btns.length; i++) btns[i].setAttribute("aria-pressed", btns[i].getAttribute("data-sort") === mode ? "true" : "false");
+  for (var i = 0; i < btns.length; i++) btns[i].setAttribute("aria-pressed", btns[i].getAttribute("data-sort") === sortMode ? "true" : "false");
   updateRatioSortState();
+}
+function sortModeLabel(){
+  return sortMode === "total" ? "合計が短い順" : "時間差が小さい順";
 }
 function updateRatioSortState(){
   var el = document.getElementById("ratioSortState");
   if (!el) return;
-  if (sortMode === "ratio"){
-    el.textContent = "並び順：希望の比率（" + targetRatioA + " : " + (100 - targetRatioA) + "）に近い順で並び替え中です。上のボタンを押すと解除されます。";
-  } else {
-    el.textContent = "並び順：上のボタンで選んだ順です。スライダーを動かすと「希望の比率に近い順」に切り替わります。";
-  }
+  var lo = Math.max(0, targetRatioA - RATIO_TOLERANCE), hi = Math.min(100, targetRatioA + RATIO_TOLERANCE);
+  el.textContent = "絞り込み：希望の比率 " + targetRatioA + " : " + (100 - targetRatioA) + " の ±" + RATIO_TOLERANCE + "ポイント以内（A側 " + lo + "〜" + hi + "%）を優先します。並び順は「" + sortModeLabel() + "」です。比率を変えても並び順は解除されません。";
 }
 function actualPctA(c){ return c.total > 0 ? (c.ta / c.total * 100) : 50; }
-/* Ratio score: gap to the desired ratio (points) plus a total-time penalty,
-   so a candidate whose ratio matches but whose total is extreme cannot top the list. */
-function ratioScore(c){ return Math.abs(actualPctA(c) - targetRatioA) + c.total * 0.2; }
-function sortedCands(cands){
-  var arr = cands.slice();
-  var keyFn = {
-    diff: function(x, y){ return (x.diff - y.diff) || (x.total - y.total); },
-    total: function(x, y){ return (x.total - y.total) || (x.diff - y.diff); },
-    ratio: function(x, y){ return (ratioScore(x) - ratioScore(y)) || (x.total - y.total) || (x.diff - y.diff); }
-  };
-  arr.sort(keyFn[sortMode] || keyFn.diff);
-  return arr;
+function ratioGap(c){ return Math.abs(actualPctA(c) - targetRatioA); }
+function isWithinRatio(c){ return ratioGap(c) <= RATIO_TOLERANCE + 1e-9; }
+function sortComparator(){
+  if (sortMode === "total") return function(x, y){ return (x.total - y.total) || (x.diff - y.diff); };
+  return function(x, y){ return (x.diff - y.diff) || (x.total - y.total); };
 }
+/* Plan A — two stages, exactly in this order:
+   1) Filter: keep only stations whose actual ratio is within
+      ±RATIO_TOLERANCE points of the desired ratio.
+   2) Sort: order that filtered set by the button key (diff / total)
+      and take the top DISPLAY_COUNT.
+   If the filtered set has fewer than DISPLAY_COUNT stations, fill the
+   remainder from outside the range, nearest ratio first, and flag the
+   fill so the UI can disclose the expansion. Fills are appended after
+   the in-range block (they never jump ahead of an in-range station). */
+function selectDisplay(cands){
+  var cmp = sortComparator();
+  var within = [], outside = [];
+  cands.forEach(function(c){
+    if (isWithinRatio(c)) within.push(c); else outside.push(c);
+  });
+  within.sort(cmp);
+  var display = within.slice(0, DISPLAY_COUNT).map(function(c){
+    var copy = {}; for (var k in c) copy[k] = c[k]; copy._within = true; copy._fill = false; return copy;
+  });
+  var filled = 0;
+  if (display.length < DISPLAY_COUNT){
+    outside.sort(function(x, y){ return (ratioGap(x) - ratioGap(y)) || cmp(x, y); });
+    var need = DISPLAY_COUNT - display.length;
+    outside.slice(0, need).forEach(function(c){
+      var copy = {}; for (var k in c) copy[k] = c[k]; copy._within = false; copy._fill = true; display.push(copy); filled++;
+    });
+  }
+  return { display: display, withinCount: within.length, filledCount: filled, expanded: filled > 0, totalCount: cands.length };
+}
+function sortedCands(cands){ return selectDisplay(cands).display; }
 function updateRatioUI(){
   var a = targetRatioA, b = 100 - a;
   document.getElementById("ratioRange").value = a;
@@ -548,13 +579,13 @@ function updateRatioUI(){
 }
 document.getElementById("ratioRange").addEventListener("input", function(){
   targetRatioA = parseInt(this.value, 10);
-  setSortMode("ratio");
+  /* Changing the ratio only changes the filter band; the sort key
+     chosen with the buttons (diff / total) stays in effect. */
   updateRatioUI();
   if (lastResult) renderResults(lastResult.A, lastResult.B);
 });
 document.getElementById("ratioReset").addEventListener("click", function(){
   targetRatioA = 50;
-  setSortMode("ratio");
   updateRatioUI();
   if (lastResult) renderResults(lastResult.A, lastResult.B);
 });
@@ -562,7 +593,6 @@ function stepRatio(d){
   targetRatioA += d;
   if (targetRatioA < 5) targetRatioA = 5;
   if (targetRatioA > 95) targetRatioA = 95;
-  setSortMode("ratio");
   updateRatioUI();
   if (lastResult) renderResults(lastResult.A, lastResult.B);
 }
@@ -671,7 +701,8 @@ function popupHTML(c, rank, rA, rB, nameA, nameB){
     '<div class="pop-row"><span>' + nameB + 'から</span><b>約' + fmt(c.tb) + '分・乗換' + rB.transfers + '回</b></div>' +
     '<div class="pop-row"><span>時間差 / 合計</span><b>' + fmt(c.diff) + '分 / 約' + fmt(c.total) + '分</b></div>' +
     '<div class="pop-row"><span>実際の比率</span><b>' + nameA + ' ' + pa + ' : ' + pb + ' ' + nameB + '</b></div>' +
-    '<div class="pop-row"><span>希望比率</span><b>' + targetRatioA + ' : ' + (100 - targetRatioA) + '</b></div>';
+    '<div class="pop-row"><span>希望比率</span><b>' + targetRatioA + ' : ' + (100 - targetRatioA) + '</b></div>' +
+    (c._fill ? '<div>※ ±' + RATIO_TOLERANCE + 'ポイントの範囲外のため、比率が近い順で補った候補です。</div>' : '');
 }
 function setActiveCandidate(sid, opts){
   opts = opts || {};
@@ -759,12 +790,23 @@ function renderResults(A, B){
   var resA = lastResult.resA, resB = lastResult.resB;
   var nameA = ST[A].n, nameB = ST[B].n;
   document.getElementById("resultTitle").textContent = nameA + " × " + nameB + " の中間候補";
-  var sortLabel = sortMode === "ratio"
-    ? "希望の比率（" + targetRatioA + " : " + (100 - targetRatioA) + "）に近い順（合計時間のペナルティ付き）"
-    : ({diff: "両側の時間差が小さい順", total: "合計所要時間が短い順"}[sortMode] || "両側の時間差が小さい順");
-  document.getElementById("resultSub").textContent = sortLabel + " ・ 上位8駅 ・ 所要時間はすべて推定";
+  var sortLabel = sortMode === "total" ? "合計所要時間が短い順" : "両側の時間差が小さい順";
+  var lo = Math.max(0, targetRatioA - RATIO_TOLERANCE), hi = Math.min(100, targetRatioA + RATIO_TOLERANCE);
+  var selection = selectDisplay(lastResult.cands);
+  var display = selection.display;
+  document.getElementById("resultSub").textContent =
+    "希望比率 " + targetRatioA + " : " + (100 - targetRatioA) + " の ±" + RATIO_TOLERANCE + "ポイント以内（" + nameA + "側 " + lo + "〜" + hi + "%）で絞り込み → " + sortLabel + " ・ " +
+    "範囲内 " + selection.withinCount + "駅中 上位" + display.length + "駅を表示 ・ 所要時間はすべて推定";
+  var notice = document.getElementById("filterNotice");
+  if (selection.expanded){
+    notice.hidden = false;
+    notice.textContent = selection.withinCount === 0
+      ? "希望比率の ±" + RATIO_TOLERANCE + "ポイント以内に候補がなかったため、範囲を広げて比率が近い順に " + selection.filledCount + "駅を補って表示しています（各カードに「範囲外・補充」と付けています）。"
+      : "希望比率の ±" + RATIO_TOLERANCE + "ポイント以内は " + selection.withinCount + "駅だけだったため、8駅になるよう範囲外から比率が近い順に " + selection.filledCount + "駅を補って表示しています（補った駅には「範囲外・補充」と付けています）。";
+  } else {
+    notice.hidden = true; notice.textContent = "";
+  }
   updateRatioUI();
-  var display = sortedCands(lastResult.cands).slice(0, 8);
   var mapItems = [];
   var list = document.getElementById("candList");
   list.innerHTML = "";
@@ -782,6 +824,7 @@ function renderResults(A, B){
     card.innerHTML =
       '<div class="cand-top"><span class="rank">' + (idx + 1) + '位</span>' +
       '<span class="cand-name">' + ST[c.sid].n + ' <small>駅</small></span>' +
+      (c._fill ? '<span class="fill-tag">範囲外・補充</span>' : '') +
       '<a class="map-link" href="' + mapsUrl + '" target="_blank" rel="noopener">地図で見る ↗</a></div>' +
       '<div class="lines">' + linesHtml + '</div>' +
       '<div class="times">' +
@@ -795,7 +838,7 @@ function renderResults(A, B){
       '<div class="bar-cap"><span>' + nameA + ' 約' + fmt(c.ta) + '分</span><span>' + nameB + ' 約' + fmt(c.tb) + '分</span></div>' +
       '<div class="ratio-actual"><span class="chip">実際の比率&nbsp;<b>' + nameA + ' ' + paR + ' : ' + pbR + ' ' + nameB + '</b></span>' +
       '<span class="delta">希望 ' + targetRatioA + ':' + (100 - targetRatioA) + ' との差 ' + ratioDelta.toFixed(0) + 'ポイント' +
-      (sortMode === "ratio" ? ' ・ スコア ' + ratioScore(c).toFixed(1) + '（小さいほど上位）' : '') + '</span></div>';
+      (c._fill ? ' ・ ±' + RATIO_TOLERANCE + 'ポイントの範囲外（補充）' : ' ・ 範囲内') + '</span></div>';
     var det = document.createElement("details"); det.className = "route";
     var sum = document.createElement("summary"); sum.textContent = "ルートの内訳を見る";
     det.appendChild(sum);
